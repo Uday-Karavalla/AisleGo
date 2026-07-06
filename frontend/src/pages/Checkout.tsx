@@ -90,9 +90,9 @@ export default function Checkout() {
     navigate(`/orders/${orderId}`)
   }
 
-  // NOTE: `addressId`/`fulfilmentType`/`scheduledFor`/`couponCode`/`paymentMethod` are
-  // UI-only state today — the backend's CheckoutRequest is just `{ branchId }` and does
-  // not yet accept any of these, so they are intentionally not sent to the API.
+  // NOTE: `fulfilmentType`/`scheduledFor`/`couponCode`/`paymentMethod` are still UI-only
+  // state — the backend doesn't yet accept any of these, so they are intentionally not
+  // sent to the API. `addressId` (below) is now real: it's snapshotted onto the order.
   async function handlePlaceOrder() {
     if (!cart.storeId) return
     if (fulfilmentType !== 'PICKUP' && !selectedAddressId) {
@@ -101,12 +101,14 @@ export default function Checkout() {
     }
 
     const branchId = Number(cart.storeId)
+    const addressId =
+      fulfilmentType !== 'PICKUP' && selectedAddressId ? Number(selectedAddressId) : undefined
 
     setSubmitting(true)
     setErrorMessage(null)
 
     try {
-      const { order, payment } = await ordersApi.checkout(branchId, idempotencyKey)
+      const { order, payment } = await ordersApi.checkout(branchId, idempotencyKey, addressId)
 
       if (!payment.requiresClientAction) {
         // Mock provider: nothing to collect from the shopper, verify immediately.

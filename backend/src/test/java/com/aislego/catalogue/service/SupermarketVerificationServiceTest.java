@@ -155,4 +155,29 @@ class SupermarketVerificationServiceTest {
 
         assertThat(result).isEqualTo(pendingSupermarket);
     }
+
+    @Test
+    void listByStatusFiltersToOneStatusWhenGiven() {
+        when(supermarketRepository.findByStatus(SupermarketStatus.PENDING)).thenReturn(java.util.List.of(pendingSupermarket));
+
+        var result = verificationService.listByStatus(SupermarketStatus.PENDING);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).status()).isEqualTo(SupermarketStatus.PENDING);
+        verify(supermarketRepository, never()).findAll();
+    }
+
+    @Test
+    void listByStatusReturnsEverySupermarketWhenStatusIsNull() {
+        Supermarket verified = new Supermarket();
+        verified.setId(20L);
+        verified.setName("Other Store");
+        verified.setStatus(SupermarketStatus.VERIFIED);
+        when(supermarketRepository.findAll()).thenReturn(java.util.List.of(pendingSupermarket, verified));
+
+        var result = verificationService.listByStatus(null);
+
+        assertThat(result).hasSize(2);
+        verify(supermarketRepository, never()).findByStatus(any());
+    }
 }

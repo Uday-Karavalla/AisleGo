@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import AdminSupermarkets from '../pages/AdminSupermarkets'
 import { adminApi } from '../api/admin'
@@ -18,6 +19,7 @@ const pendingA: PendingSupermarket = {
   name: 'Fresh Mart',
   description: 'Local grocery',
   phone: '9999999999',
+  status: 'PENDING',
   ownerEmail: 'owner@fresh.com',
   ownerFullName: 'Owner One',
 }
@@ -27,6 +29,7 @@ const pendingB: PendingSupermarket = {
   name: 'Green Grocer',
   description: null,
   phone: null,
+  status: 'PENDING',
   ownerEmail: 'owner2@green.com',
   ownerFullName: 'Owner Two',
 }
@@ -41,7 +44,11 @@ describe('AdminSupermarkets', () => {
     vi.mocked(adminApi.verify).mockResolvedValue(undefined)
 
     const user = userEvent.setup()
-    render(<AdminSupermarkets />)
+    render(
+      <MemoryRouter>
+        <AdminSupermarkets />
+      </MemoryRouter>,
+    )
 
     await screen.findByText('Fresh Mart')
     const verifyButtons = screen.getAllByRole('button', { name: /^verify$/i })
@@ -58,7 +65,11 @@ describe('AdminSupermarkets', () => {
     vi.mocked(adminApi.reject).mockResolvedValue(undefined)
 
     const user = userEvent.setup()
-    render(<AdminSupermarkets />)
+    render(
+      <MemoryRouter>
+        <AdminSupermarkets />
+      </MemoryRouter>,
+    )
 
     await screen.findByText('Green Grocer')
     const rejectButtons = screen.getAllByRole('button', { name: /^reject$/i })

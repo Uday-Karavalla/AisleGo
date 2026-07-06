@@ -7,10 +7,15 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
-public record OrderResponse(
+/** A supermarket owner's view of one of their store's orders - includes the customer's
+ *  contact details (needed to hand over or coordinate delivery) and the item list (needed
+ *  to pick and pack), unlike the platform-admin's {@code AdminOrderResponse}. */
+public record OwnerOrderResponse(
         Long id,
-        Long supermarketId,
+        String customerName,
+        String customerPhone,
         Long branchId,
+        String branchName,
         OrderStatus status,
         BigDecimal totalAmount,
         String currency,
@@ -18,11 +23,13 @@ public record OrderResponse(
         String deliveryAddress,
         Instant createdAt
 ) {
-    public static OrderResponse from(Order order) {
-        return new OrderResponse(
+    public static OwnerOrderResponse from(Order order) {
+        return new OwnerOrderResponse(
                 order.getId(),
-                order.getSupermarket().getId(),
+                order.getUser().getFullName(),
+                order.getUser().getPhone(),
                 order.getBranch().getId(),
+                order.getBranch().getName(),
                 order.getStatus(),
                 order.getTotalAmount().getAmount(),
                 order.getTotalAmount().getCurrencyCode(),

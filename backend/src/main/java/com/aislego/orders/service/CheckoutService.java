@@ -1,5 +1,7 @@
 package com.aislego.orders.service;
 
+import com.aislego.addresses.domain.Address;
+import com.aislego.addresses.repository.AddressRepository;
 import com.aislego.catalogue.domain.Branch;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.common.exception.BadRequestException;
@@ -68,6 +70,7 @@ public class CheckoutService {
     private final OrderRepository orderRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
     private final InventoryReservationService inventoryReservationService;
     private final PaymentService paymentService;
     private final PaymentRepository paymentRepository;
@@ -76,6 +79,7 @@ public class CheckoutService {
 
     public CheckoutService(CartRepository cartRepository, OrderRepository orderRepository,
                             BranchRepository branchRepository, UserRepository userRepository,
+                            AddressRepository addressRepository,
                             InventoryReservationService inventoryReservationService,
                             PaymentService paymentService, PaymentRepository paymentRepository,
                             NotificationService notificationService,
@@ -84,6 +88,7 @@ public class CheckoutService {
         this.orderRepository = orderRepository;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
+        this.addressRepository = addressRepository;
         this.inventoryReservationService = inventoryReservationService;
         this.paymentService = paymentService;
         this.paymentRepository = paymentRepository;
@@ -115,7 +120,9 @@ public class CheckoutService {
 
         inventoryReservationService.reserveForOrder(branch.getId(), toReservationLines(cart));
 
-        Order order = buildOrder(userId, idempotencyKey, cart, branch);
+        String deliveryAddress = resolveDeliveryAddress(userId, request.addressId());
+
+        Order order = buildOrder(userId, idempotencyKey, cart, branch, deliveryAddress);
         order = orderRepository.save(order);
 
         PaymentIntentResponse paymentResponse = createPayment(order);
@@ -234,12 +241,34 @@ public class CheckoutService {
                 .toList();
     }
 
-    private Order buildOrder(Long userId, String idempotencyKey, Cart cart, Branch branch) {
+    /** Resolves and formats the customer's chosen address into the snapshot stored on the
+     *  order - null for a pickup order or when no address was selected. Re-validates the
+     *  address belongs to this customer rather than trusting the id, same pattern as every
+     *  other owner-scoped lookup in this codebase. */
+    private String resolveDeliveryAddress(Long userId, Long addressId) {
+        if (addressId == null) {
+            return null;
+        }
+        Address address = addressRepository.findByIdAndUserId(addressId, userId)
+                .orElseThrow(() -> new NotFoundException("Address " + addressId + " was not found"));
+
+        StringBuilder formatted = new StringBuilder(address.getLine1());
+        if (address.getLine2() != null && !address.getLine2().isBlank()) {
+            formatted.append(", ").append(address.getLine2());
+        }
+        formatted.append(", ").append(address.getCity())
+                .append(", ").append(address.getState())
+                .append(" ").append(address.getPostalCode());
+        return formatted.toString();
+    }
+
+    private Order buildOrder(Long userId, String idempotencyKey, Cart cart, Branch branch, String deliveryAddress) {
         Order order = new Order();
         order.setUser(userRepository.getReferenceById(userId));
         order.setSupermarket(branch.getSupermarket());
         order.setBranch(branch);
         order.setIdempotencyKey(idempotencyKey);
+        order.setDeliveryAddress(deliveryAddress);
         order.setStatus(OrderStatus.PLACED);
 
         String currency = cart.getItems().get(0).getUnitPrice().getCurrencyCode();

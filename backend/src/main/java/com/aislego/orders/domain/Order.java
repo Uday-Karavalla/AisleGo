@@ -63,6 +63,13 @@ public class Order extends BaseEntity {
     @Column(name = "idempotency_key", nullable = false)
     private String idempotencyKey;
 
+    /** Formatted snapshot of the delivery address at checkout time - deliberately not a live
+     *  join to {@code Address}, so editing or deleting a saved address later never changes
+     *  where an already-placed order says it's going. Null for pickup orders / no address
+     *  selected. */
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<OrderItem> items = new ArrayList<>();
 }

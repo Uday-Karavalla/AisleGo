@@ -35,7 +35,7 @@ export default function Login() {
     <div className="flex flex-col gap-6 px-5 py-8">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Sign in</h1>
-        <p className="mt-1 text-sm text-ink-muted">Supermarket owners and AisleGo admins sign in here.</p>
+        <p className="mt-1 text-sm text-ink-muted">Customers, supermarket owners, and AisleGo admins all sign in here.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-3">
@@ -76,6 +76,12 @@ export default function Login() {
         </button>
       </form>
 
+      <p className="text-center text-sm text-ink-muted">
+        New to AisleGo?{' '}
+        <Link to="/register" className="font-semibold text-brand-700">
+          Create an account
+        </Link>
+      </p>
       <p className="text-center text-sm text-ink-muted">
         Registering a supermarket?{' '}
         <Link to="/register-store" className="font-semibold text-brand-700">

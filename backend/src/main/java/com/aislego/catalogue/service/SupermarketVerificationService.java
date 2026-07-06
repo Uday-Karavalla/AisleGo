@@ -44,10 +44,16 @@ public class SupermarketVerificationService {
      * (open-in-view is disabled - see application.yml) and {@link PendingSupermarketResponse}
      * needs to read through it for the owner's display name/email, so the mapping has to
      * happen while this method's transaction is still open.
+     *
+     * <p>{@code status == null} returns every supermarket regardless of status - the admin's
+     * "all stores" directory view, as opposed to the review queue.
      */
     @Transactional(readOnly = true)
     public List<PendingSupermarketResponse> listByStatus(SupermarketStatus status) {
-        return supermarketRepository.findByStatus(status).stream()
+        List<Supermarket> supermarkets = status == null
+                ? supermarketRepository.findAll()
+                : supermarketRepository.findByStatus(status);
+        return supermarkets.stream()
                 .map(PendingSupermarketResponse::from)
                 .toList();
     }

@@ -34,9 +34,10 @@ public class AdminSupermarketController {
         this.verificationService = verificationService;
     }
 
+    /** Omit {@code status} for the full store directory; pass it to filter to one review state. */
     @GetMapping
     public ResponseEntity<List<PendingSupermarketResponse>> list(
-            @RequestParam(defaultValue = "PENDING") SupermarketStatus status) {
+            @RequestParam(required = false) SupermarketStatus status) {
         return ResponseEntity.ok(verificationService.listByStatus(status));
     }
 

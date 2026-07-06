@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { adminApi } from '../api/admin'
 import type { PendingSupermarket } from '../api/admin'
 import { Dialog } from '../components/Dialog'
@@ -68,7 +69,12 @@ export default function AdminSupermarkets() {
 
   return (
     <div className="flex flex-col gap-4 px-5 py-6">
-      <h1 className="text-xl font-extrabold text-ink">Pending supermarkets</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-extrabold text-ink">Pending supermarkets</h1>
+        <Link to="/admin/orders" className="text-sm font-semibold text-brand-700">
+          All orders
+        </Link>
+      </div>
 
       {message && (
         <p role="status" className="text-sm text-brand-700">

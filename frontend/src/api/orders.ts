@@ -61,6 +61,7 @@ export interface Order {
   totalAmount: number
   currency: string
   items: OrderItem[]
+  deliveryAddress: string | null
   createdAt: string
 }
 
@@ -95,12 +96,14 @@ export const ordersApi = {
    * `idempotencyKey` must be generated client-side and reused across retries of the
    * same checkout attempt.
    */
-  checkout: (branchId: number, idempotencyKey: string) =>
-    api.post<CheckoutResponse>('/checkout', { branchId }, { idempotencyKey }),
+  checkout: (branchId: number, idempotencyKey: string, addressId?: number) =>
+    api.post<CheckoutResponse>('/checkout', { branchId, addressId }, { idempotencyKey }),
 
   /** `POST /api/checkout/{orderId}/payment/verify` — idempotent; returns the updated order. */
   verifyPayment: (orderId: number, payload: PaymentVerificationPayload, idempotencyKey: string) =>
     api.post<Order>(`/checkout/${orderId}/payment/verify`, payload, { idempotencyKey }),
+
+  listMine: () => api.get<Order[]>('/orders'),
 
   getById: (orderId: number) => api.get<Order>(`/orders/${orderId}`),
 

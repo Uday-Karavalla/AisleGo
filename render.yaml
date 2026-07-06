@@ -1,0 +1,57 @@
+databases:
+  - name: aislego-db
+    plan: free
+    databaseName: aislego
+    user: aislego
+
+services:
+  - type: web
+    name: aislego-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: aislego-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: aislego-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: aislego-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: aislego-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: aislego-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      # Placeholder - after the frontend's first deploy, update this to its real
+      # onrender.com URL (Render appends a random suffix if "aislego-frontend" is
+      # already taken by someone else) and redeploy this service.
+      - key: CORS_ALLOWED_ORIGIN
+        value: https://aislego-frontend.onrender.com
+
+  - type: web
+    name: aislego-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      # Placeholder - after the backend's first deploy, update this to its real
+      # onrender.com URL (same random-suffix caveat as above) and redeploy this service.
+      - key: VITE_API_BASE_URL
+        value: https://aislego-backend.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

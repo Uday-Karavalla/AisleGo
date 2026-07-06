@@ -14,6 +14,19 @@ export function ProductCard({ product, quantityInCart, onAdd, onIncrement, onDec
 
   return (
     <div className="card flex flex-col gap-3">
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="h-28 w-full rounded-xl object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex h-28 w-full items-center justify-center rounded-xl bg-brand-50 text-2xl font-black text-brand-600">
+          {product.name.charAt(0).toUpperCase()}
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-ink">{product.name}</h3>

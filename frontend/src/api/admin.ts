@@ -1,24 +1,75 @@
 import { api } from './client'
+import type { OrderStatus } from './orders'
+
+export type SupermarketStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
 
 /**
- * Shape assumed for each element of `GET /api/admin/supermarkets?status=PENDING`,
- * matching the plan's `PendingSupermarketResponse` DTO description exactly
- * (id/name/description/phone/ownerEmail/ownerFullName, nullable where the owner
- * hasn't supplied a value).
+ * Shape of each element of `GET /api/admin/supermarkets`, matching the backend's
+ * `PendingSupermarketResponse` DTO (id/name/description/phone/status/ownerEmail/ownerFullName,
+ * nullable where the owner hasn't supplied a value or the store predates owner accounts).
  */
 export interface PendingSupermarket {
   id: number
   name: string
   description: string | null
   phone: string | null
+  status: SupermarketStatus
   ownerEmail: string | null
   ownerFullName: string | null
 }
 
+/** One row of `GET /api/admin/orders` — matches the backend's `AdminOrderResponse` exactly. */
+export interface AdminOrder {
+  id: number
+  customerName: string
+  customerEmail: string
+  supermarketName: string
+  branchName: string
+  status: OrderStatus
+  totalAmount: number
+  currency: string
+  deliveryAddress: string | null
+  createdAt: string
+}
+
+/** Raw shape of `GET /api/admin/orders` - a Spring Data `Page<AdminOrderResponse>`. */
+interface RawAdminOrderPage {
+  content: AdminOrder[]
+  number: number
+  totalPages: number
+  totalElements: number
+}
+
+export interface AdminOrderPage {
+  orders: AdminOrder[]
+  page: number
+  totalPages: number
+  totalCount: number
+}
+
 export const adminApi = {
-  listPending: () => api.get<PendingSupermarket[]>('/admin/supermarkets?status=PENDING'),
+  /** Omit `status` for the full store directory; pass it to filter to one review state. */
+  listSupermarkets: (status?: SupermarketStatus) =>
+    api.get<PendingSupermarket[]>(`/admin/supermarkets${status ? `?status=${status}` : ''}`),
+
+  listPending: () => adminApi.listSupermarkets('PENDING'),
 
   verify: (id: number) => api.post<void>(`/admin/supermarkets/${id}/verify`),
 
   reject: (id: number, reason: string) => api.post<void>(`/admin/supermarkets/${id}/reject`, { reason }),
+
+  async listOrders(params: { status?: OrderStatus; page?: number } = {}): Promise<AdminOrderPage> {
+    const query = new URLSearchParams({
+      page: String((params.page ?? 1) - 1),
+      size: '20',
+      ...(params.status ? { status: params.status } : {}),
+    })
+    const response = await api.get<RawAdminOrderPage>(`/admin/orders?${query.toString()}`)
+    return {
+      orders: response.content,
+      page: response.number + 1,
+      totalPages: response.totalPages,
+      totalCount: response.totalElements,
+    }
+  },
 }

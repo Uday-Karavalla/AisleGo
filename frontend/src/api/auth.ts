@@ -15,6 +15,13 @@ export interface MeResponse {
   roles: string[]
 }
 
+export interface RegisterPayload {
+  email: string
+  password: string
+  fullName: string
+  phone: string
+}
+
 export interface RegisterSupermarketOwnerPayload {
   email: string
   password: string
@@ -41,6 +48,8 @@ export interface RegisterSupermarketOwnerResponse {
 
 export const authApi = {
   login: (email: string, password: string) => api.post<AuthResponse>('/auth/login', { email, password }),
+
+  register: (payload: RegisterPayload) => api.post<AuthResponse>('/auth/register', payload),
 
   registerSupermarketOwner: (payload: RegisterSupermarketOwnerPayload) =>
     api.post<RegisterSupermarketOwnerResponse>('/auth/register-supermarket-owner', payload),

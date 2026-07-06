@@ -1,4 +1,5 @@
 import { api } from './client'
+import type { OrderStatus } from './orders'
 
 export type SupermarketStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
 
@@ -72,6 +73,30 @@ export interface UpdateOwnerProduct {
   active: boolean
 }
 
+/** One item line of an owner-visible order — matches the backend's `OrderItemResponse`. */
+export interface OwnerOrderItem {
+  productId: number
+  productName: string
+  quantity: number
+  unitPrice: number
+  lineTotal: number
+}
+
+/** Matches the backend's `OwnerOrderResponse` exactly. */
+export interface OwnerOrder {
+  id: number
+  customerName: string
+  customerPhone: string | null
+  branchId: number
+  branchName: string
+  status: OrderStatus
+  totalAmount: number
+  currency: string
+  items: OwnerOrderItem[]
+  deliveryAddress: string | null
+  createdAt: string
+}
+
 export const supermarketOwnerApi = {
   mine: () => api.get<MySupermarket>('/supermarkets/mine'),
 
@@ -84,4 +109,9 @@ export const supermarketOwnerApi = {
     api.patch<OwnerProduct>(`/supermarkets/mine/products/${productId}`, product),
   updateInventory: (productId: number, branchId: number, quantityOnHand: number) =>
     api.patch<OwnerProduct>(`/supermarkets/mine/products/${productId}/inventory`, { branchId, quantityOnHand }),
+
+  listOrders: (status?: OrderStatus) =>
+    api.get<OwnerOrder[]>(`/supermarkets/mine/orders${status ? `?status=${status}` : ''}`),
+  updateOrderStatus: (orderId: number, status: OrderStatus) =>
+    api.patch<OwnerOrder>(`/supermarkets/mine/orders/${orderId}/status`, { status }),
 }

@@ -79,6 +79,11 @@ export default function MySupermarketStatus() {
       <Link to="/my-store/catalogue" className="btn-primary text-center">
         Manage branch &amp; products
       </Link>
+      {supermarket.status === 'VERIFIED' && (
+        <Link to="/my-store/orders" className="btn-secondary text-center">
+          View orders
+        </Link>
+      )}
     </div>
   )
 }

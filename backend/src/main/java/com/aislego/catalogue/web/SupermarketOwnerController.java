@@ -10,6 +10,10 @@ import com.aislego.catalogue.dto.UpdateProductRequest;
 import com.aislego.catalogue.service.OwnerCatalogService;
 import com.aislego.catalogue.service.SupermarketVerificationService;
 import com.aislego.common.security.AuthenticatedUser;
+import com.aislego.orders.domain.OrderStatus;
+import com.aislego.orders.dto.OwnerOrderResponse;
+import com.aislego.orders.dto.UpdateOrderStatusRequest;
+import com.aislego.orders.service.OwnerOrderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,11 +38,14 @@ public class SupermarketOwnerController {
 
     private final SupermarketVerificationService verificationService;
     private final OwnerCatalogService ownerCatalogService;
+    private final OwnerOrderService ownerOrderService;
 
     public SupermarketOwnerController(SupermarketVerificationService verificationService,
-                                       OwnerCatalogService ownerCatalogService) {
+                                       OwnerCatalogService ownerCatalogService,
+                                       OwnerOrderService ownerOrderService) {
         this.verificationService = verificationService;
         this.ownerCatalogService = ownerCatalogService;
+        this.ownerOrderService = ownerOrderService;
     }
 
     /**
@@ -86,5 +94,19 @@ public class SupermarketOwnerController {
                                                  @PathVariable Long productId,
                                                  @Valid @RequestBody UpdateInventoryRequest request) {
         return ownerCatalogService.updateInventory(principal.userId(), productId, request);
+    }
+
+    /** Omit {@code status} for every order at this store; pass it to filter to one stage. */
+    @GetMapping("/mine/orders")
+    public List<OwnerOrderResponse> listOrders(@AuthenticationPrincipal AuthenticatedUser principal,
+                                                @RequestParam(required = false) OrderStatus status) {
+        return ownerOrderService.listOrders(principal.userId(), status);
+    }
+
+    @PatchMapping("/mine/orders/{orderId}/status")
+    public OwnerOrderResponse updateOrderStatus(@AuthenticationPrincipal AuthenticatedUser principal,
+                                                 @PathVariable Long orderId,
+                                                 @Valid @RequestBody UpdateOrderStatusRequest request) {
+        return ownerOrderService.advanceStatus(principal.userId(), orderId, request.status());
     }
 }

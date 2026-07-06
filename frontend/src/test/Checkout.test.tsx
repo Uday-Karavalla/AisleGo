@@ -75,7 +75,7 @@ vi.mock('../api/mockOrders', () => ({
 }))
 
 const testAddress = {
-  id: 'addr-1',
+  id: '1',
   label: 'Home',
   line1: '1 Main St',
   city: 'Metropolis',
@@ -93,6 +93,7 @@ function baseOrder(overrides: Partial<Order> = {}): Order {
     totalAmount: 125,
     currency: 'INR',
     items: [],
+    deliveryAddress: null,
     createdAt: new Date().toISOString(),
     ...overrides,
   }
@@ -134,7 +135,7 @@ describe('Checkout — mock payment provider (no client action)', () => {
     await user.click(screen.getByRole('button', { name: /pay & place order/i }))
 
     await waitFor(() => expect(ordersApi.verifyPayment).toHaveBeenCalledWith(42, {}, expect.any(String)))
-    expect(ordersApi.checkout).toHaveBeenCalledWith(5, expect.any(String))
+    expect(ordersApi.checkout).toHaveBeenCalledWith(5, expect.any(String), 1)
     expect(mockClearCart).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith('/orders/42')
   })

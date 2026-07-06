@@ -10,12 +10,16 @@ import StoreDiscovery from './pages/StoreDiscovery'
 import Storefront from './pages/Storefront'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
+import Orders from './pages/Orders'
 import OrderTracking from './pages/OrderTracking'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import RegisterSupermarketOwner from './pages/RegisterSupermarketOwner'
 import AdminSupermarkets from './pages/AdminSupermarkets'
+import AdminOrders from './pages/AdminOrders'
 import MySupermarketStatus from './pages/MySupermarketStatus'
 import MyStoreCatalogue from './pages/MyStoreCatalogue'
+import MyStoreOrders from './pages/MyStoreOrders'
 
 function App() {
   return (
@@ -30,14 +34,31 @@ function App() {
                 <Route path="/stores/:storeId" element={<Storefront />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/checkout" element={<Checkout />} />
+                <Route
+                  path="/orders"
+                  element={
+                    <ProtectedRoute requiredRole="CUSTOMER">
+                      <Orders />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/orders/:orderId" element={<OrderTracking />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
                 <Route path="/register-store" element={<RegisterSupermarketOwner />} />
                 <Route
                   path="/admin"
                   element={
                     <ProtectedRoute requiredRole="ADMIN">
                       <AdminSupermarkets />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/orders"
+                  element={
+                    <ProtectedRoute requiredRole="ADMIN">
+                      <AdminOrders />
                     </ProtectedRoute>
                   }
                 />
@@ -54,6 +75,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="SUPERMARKET_OWNER">
                       <MyStoreCatalogue />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-store/orders"
+                  element={
+                    <ProtectedRoute requiredRole="SUPERMARKET_OWNER">
+                      <MyStoreOrders />
                     </ProtectedRoute>
                   }
                 />

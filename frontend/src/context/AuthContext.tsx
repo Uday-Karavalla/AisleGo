@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { authApi } from '../api/auth'
-import type { RegisterSupermarketOwnerPayload } from '../api/auth'
+import type { RegisterPayload, RegisterSupermarketOwnerPayload } from '../api/auth'
 import { getAuthToken, setAuthToken } from '../api/client'
 
 export interface AuthUser {
@@ -15,6 +15,7 @@ interface AuthContextValue {
   isLoading: boolean
   login: (email: string, password: string) => Promise<AuthUser>
   logout: () => void
+  register: (payload: RegisterPayload) => Promise<AuthUser>
   registerSupermarketOwner: (payload: RegisterSupermarketOwnerPayload) => Promise<AuthUser>
 }
 
@@ -57,6 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return me
   }, [])
 
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const auth = await authApi.register(payload)
+    setAuthToken(auth.accessToken)
+    const me = await authApi.me()
+    setUser(me)
+    return me
+  }, [])
+
   const registerSupermarketOwner = useCallback(async (payload: RegisterSupermarketOwnerPayload) => {
     const response = await authApi.registerSupermarketOwner(payload)
     setAuthToken(response.auth.accessToken)
@@ -71,8 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, login, logout, registerSupermarketOwner }),
-    [user, isLoading, login, logout, registerSupermarketOwner],
+    () => ({ user, isLoading, login, logout, register, registerSupermarketOwner }),
+    [user, isLoading, login, logout, register, registerSupermarketOwner],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

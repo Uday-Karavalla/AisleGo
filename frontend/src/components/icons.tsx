@@ -139,6 +139,15 @@ export function AlertIcon(props: IconProps) {
   )
 }
 
+export function UserIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  )
+}
+
 export function StoreIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

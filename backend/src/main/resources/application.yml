@@ -18,7 +18,9 @@ spring:
     baseline-on-migrate: true
 
 server:
-  port: ${SERVER_PORT:8080}
+  # Render (and most PaaS hosts) inject PORT and require the app to bind to it;
+  # SERVER_PORT/8080 remain the fallback for docker-compose and local runs.
+  port: ${PORT:${SERVER_PORT:8080}}
 
 # Redis is provisioned in docker-compose for later phases (caching, rate limiting,
 # session/OTP storage) but nothing in the first working flow needs it yet, so there is no

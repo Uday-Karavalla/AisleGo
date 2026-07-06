@@ -56,6 +56,7 @@ export function createMockOrder(params: { branchId: number; cart: Cart }): Order
     totalAmount: cart.total,
     currency: 'INR',
     items,
+    deliveryAddress: null,
     createdAt: placedAt.toISOString(),
   }
 

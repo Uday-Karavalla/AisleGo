@@ -94,6 +94,13 @@ export default function OrderTracking() {
         <OrderStatusStepper currentStage={order.status} />
       </div>
 
+      {order.deliveryAddress && (
+        <div className="card">
+          <h2 className="mb-1 text-sm font-bold text-ink">Delivering to</h2>
+          <p className="text-sm text-ink-muted">{order.deliveryAddress}</p>
+        </div>
+      )}
+
       <div className="card">
         <h2 className="mb-3 text-sm font-bold text-ink">Order summary</h2>
         <ul className="flex flex-col gap-2 text-sm">
