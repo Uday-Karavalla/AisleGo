@@ -43,4 +43,7 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
                                                         @Param("limit") int limit);
 
     List<Branch> findBySupermarketIdAndActiveTrue(Long supermarketId);
+
+    /** Owner-facing listing - includes inactive branches, unlike the customer-facing query above. */
+    List<Branch> findBySupermarketIdOrderByNameAsc(Long supermarketId);
 }

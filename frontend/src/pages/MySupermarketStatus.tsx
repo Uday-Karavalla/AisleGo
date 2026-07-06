@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supermarketOwnerApi } from '../api/supermarket'
 import type { MySupermarket } from '../api/supermarket'
 import { EmptyState } from '../components/EmptyState'
@@ -74,6 +75,10 @@ export default function MySupermarketStatus() {
           <p className="text-sm text-ink-muted">{supermarket.rejectionReason ?? 'No reason provided.'}</p>
         </div>
       )}
+
+      <Link to="/my-store/catalogue" className="btn-primary text-center">
+        Manage branch &amp; products
+      </Link>
     </div>
   )
 }

@@ -47,4 +47,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             ORDER BY c.name ASC
             """, nativeQuery = true)
     List<String> findDistinctCategoryNamesBySupermarketId(@Param("supermarketId") Long supermarketId);
+
+    /** Owner-facing listing - includes inactive products, unlike the customer-facing search above. */
+    List<Product> findBySupermarketIdOrderByNameAsc(Long supermarketId);
 }

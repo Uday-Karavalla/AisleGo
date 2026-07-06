@@ -15,6 +15,7 @@ import Login from './pages/Login'
 import RegisterSupermarketOwner from './pages/RegisterSupermarketOwner'
 import AdminSupermarkets from './pages/AdminSupermarkets'
 import MySupermarketStatus from './pages/MySupermarketStatus'
+import MyStoreCatalogue from './pages/MyStoreCatalogue'
 
 function App() {
   return (
@@ -45,6 +46,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="SUPERMARKET_OWNER">
                       <MySupermarketStatus />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-store/catalogue"
+                  element={
+                    <ProtectedRoute requiredRole="SUPERMARKET_OWNER">
+                      <MyStoreCatalogue />
                     </ProtectedRoute>
                   }
                 />
