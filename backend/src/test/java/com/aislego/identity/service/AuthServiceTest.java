@@ -3,12 +3,15 @@ package com.aislego.identity.service;
 import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.domain.SupermarketStatus;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
+import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
+import com.aislego.identity.dto.UpdateAccountRequest;
 import com.aislego.identity.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +19,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -99,5 +105,95 @@ class AuthServiceTest {
 
         verify(userRepository, never()).save(any());
         verify(supermarketRepository, never()).save(any());
+    }
+
+    private static final Long USER_ID = 1L;
+
+    private User buildUser() {
+        User user = new User();
+        user.setId(USER_ID);
+        user.setEmail("admin@aislego.com");
+        user.setPasswordHash("old-hash");
+        user.setFullName("AisleGo Admin");
+        user.setRoles(Set.of(Role.ADMIN));
+        return user;
+    }
+
+    @Test
+    void updateAccountChangesEmailAndPasswordWhenCurrentPasswordMatches() {
+        User user = buildUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old-password", "old-hash")).thenReturn(true);
+        when(userRepository.existsByEmail("aislego@gmail.com")).thenReturn(false);
+        when(passwordEncoder.encode("new-password123")).thenReturn("new-hash");
+        when(jwtService.generateAccessToken(anyLong(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(anyLong(), any(), any())).thenReturn("refresh-token");
+        when(jwtService.getAccessTokenTtlMillis()).thenReturn(900_000L);
+
+        UpdateAccountRequest request = new UpdateAccountRequest(
+                "AisleGo@gmail.com", "old-password", "new-password123");
+
+        authService.updateAccount(USER_ID, request);
+
+        assertThat(user.getEmail()).isEqualTo("aislego@gmail.com");
+        assertThat(user.getPasswordHash()).isEqualTo("new-hash");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateAccountRejectsAnIncorrectCurrentPassword() {
+        User user = buildUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong-password", "old-hash")).thenReturn(false);
+
+        UpdateAccountRequest request = new UpdateAccountRequest("new@example.com", "wrong-password", null);
+
+        assertThatThrownBy(() -> authService.updateAccount(USER_ID, request))
+                .isInstanceOf(UnauthorizedException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAccountRejectsAnEmailAlreadyTakenBySomeoneElse() {
+        User user = buildUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old-password", "old-hash")).thenReturn(true);
+        when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
+
+        UpdateAccountRequest request = new UpdateAccountRequest("taken@example.com", "old-password", null);
+
+        assertThatThrownBy(() -> authService.updateAccount(USER_ID, request))
+                .isInstanceOf(ConflictException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAccountRejectsATooShortNewPassword() {
+        User user = buildUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old-password", "old-hash")).thenReturn(true);
+
+        UpdateAccountRequest request = new UpdateAccountRequest("admin@aislego.com", "old-password", "short");
+
+        assertThatThrownBy(() -> authService.updateAccount(USER_ID, request))
+                .isInstanceOf(BadRequestException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAccountLeavesPasswordUnchangedWhenNewPasswordIsOmitted() {
+        User user = buildUser();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old-password", "old-hash")).thenReturn(true);
+        when(jwtService.generateAccessToken(anyLong(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(anyLong(), any(), any())).thenReturn("refresh-token");
+        when(jwtService.getAccessTokenTtlMillis()).thenReturn(900_000L);
+
+        UpdateAccountRequest request = new UpdateAccountRequest("admin@aislego.com", "old-password", null);
+
+        authService.updateAccount(USER_ID, request);
+
+        assertThat(user.getPasswordHash()).isEqualTo("old-hash");
+        verify(passwordEncoder, never()).encode(any());
     }
 }

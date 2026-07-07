@@ -14,6 +14,7 @@ import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.RegisterRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
+import com.aislego.identity.dto.UpdateAccountRequest;
 import com.aislego.identity.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -101,6 +102,38 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }
+
+        return issueTokens(user);
+    }
+
+    /**
+     * Self-service email/password change for the currently authenticated user - re-verifies
+     * {@code currentPassword} first (a valid JWT alone shouldn't be able to permanently take
+     * over an account's login credentials), then re-issues tokens since the email is part of
+     * the JWT claims and would otherwise go stale.
+     */
+    @Transactional
+    public AuthResponse updateAccount(Long userId, UpdateAccountRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Account no longer exists"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Current password is incorrect");
+        }
+
+        String newEmail = request.email().toLowerCase();
+        if (!newEmail.equals(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
+            throw new ConflictException("EMAIL_TAKEN", "An account with this email already exists");
+        }
+        user.setEmail(newEmail);
+
+        if (request.newPassword() != null && !request.newPassword().isBlank()) {
+            if (request.newPassword().length() < 8) {
+                throw new BadRequestException("New password must be at least 8 characters");
+            }
+            user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        }
+        userRepository.save(user);
 
         return issueTokens(user);
     }

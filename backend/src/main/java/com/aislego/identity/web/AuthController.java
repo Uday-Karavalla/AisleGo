@@ -9,12 +9,14 @@ import com.aislego.identity.dto.RefreshRequest;
 import com.aislego.identity.dto.RegisterRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
+import com.aislego.identity.dto.UpdateAccountRequest;
 import com.aislego.identity.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -69,5 +71,15 @@ public class AuthController {
             throw new UnauthorizedException("Authentication is required");
         }
         return ResponseEntity.ok(new MeResponse(principal.userId(), principal.email(), principal.roles()));
+    }
+
+    /** Self-service email/password change - see {@link com.aislego.identity.service.AuthService#updateAccount}. */
+    @PatchMapping("/me")
+    public ResponseEntity<AuthResponse> updateMe(@AuthenticationPrincipal AuthenticatedUser principal,
+                                                  @Valid @RequestBody UpdateAccountRequest request) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication is required");
+        }
+        return ResponseEntity.ok(authService.updateAccount(principal.userId(), request));
     }
 }
