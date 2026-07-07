@@ -28,4 +28,9 @@ USER aislego
 ENV SPRING_PROFILES_ACTIVE=local
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Tuned for tight-memory hosts (e.g. Render's free 512MB tier): caps heap/metaspace/thread
+# stacks explicitly rather than trusting container-memory auto-detection, and reduces JIT
+# compiler threads since a shared/throttled CPU gains little from extra compiler parallelism
+# but pays for it in contention. Without this the JVM's default sizing assumes far more
+# headroom than a free-tier container actually has, leading to OOM kills under any real load.
+ENTRYPOINT ["java", "-Xmx350m", "-Xss256k", "-XX:MaxMetaspaceSize=96m", "-XX:CICompilerCount=2", "-jar", "/app/app.jar"]
