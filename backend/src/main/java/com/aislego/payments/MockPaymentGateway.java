@@ -3,6 +3,7 @@ package com.aislego.payments;
 import com.aislego.common.money.Money;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,8 +20,14 @@ import java.util.UUID;
  * {@link #verifyAndCapture} with an empty payload. Deterministic for demo/testing purposes:
  * verification always succeeds. This is a stand-in, not a simulation of real-world decline
  * rates.
+ *
+ * <p>Explicitly mutually exclusive with {@link RazorpayPaymentGateway} via the same property
+ * (matching "mock" or unset) - without this, setting {@code aislego.payments.provider=razorpay}
+ * would leave *both* beans active and crash the app at startup with a
+ * {@code NoUniqueBeanDefinitionException}.
  */
 @Service
+@ConditionalOnProperty(name = "aislego.payments.provider", havingValue = "mock", matchIfMissing = true)
 public class MockPaymentGateway implements PaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(MockPaymentGateway.class);
