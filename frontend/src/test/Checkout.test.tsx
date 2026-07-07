@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import Checkout from '../pages/Checkout'
 import { ordersApi } from '../api/orders'
@@ -101,7 +102,11 @@ function baseOrder(overrides: Partial<Order> = {}): Order {
 
 async function renderCheckoutReadyToSubmit() {
   const user = userEvent.setup()
-  render(<Checkout />)
+  render(
+    <MemoryRouter>
+      <Checkout />
+    </MemoryRouter>,
+  )
   // Wait for the address list to load and auto-select the default address.
   await screen.findByText('Home')
   return user

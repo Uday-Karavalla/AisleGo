@@ -10,4 +10,7 @@ public interface AddressRepository extends JpaRepository<Address, Long> {
     List<Address> findByUserIdOrderByIdAsc(Long userId);
 
     Optional<Address> findByIdAndUserId(Long id, Long userId);
+
+    /** Used to enforce "at most one default address per customer" - see {@code AddressService}. */
+    List<Address> findByUserIdAndIsDefaultTrue(Long userId);
 }

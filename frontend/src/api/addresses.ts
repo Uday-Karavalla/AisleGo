@@ -63,4 +63,29 @@ export const addressesApi = {
       throw error
     }
   },
+
+  async update(id: string, address: NewAddress): Promise<Address> {
+    try {
+      return await api.patch<Address>(`/addresses/${id}`, address)
+    } catch (error) {
+      if (error instanceof ApiError && error.isNetworkError) {
+        const updated: Address = { ...address, id }
+        writeLocalAddresses(readLocalAddresses().map((a) => (a.id === id ? updated : a)))
+        return updated
+      }
+      throw error
+    }
+  },
+
+  async remove(id: string): Promise<void> {
+    try {
+      await api.delete<void>(`/addresses/${id}`)
+    } catch (error) {
+      if (error instanceof ApiError && error.isNetworkError) {
+        writeLocalAddresses(readLocalAddresses().filter((a) => a.id !== id))
+        return
+      }
+      throw error
+    }
+  },
 }

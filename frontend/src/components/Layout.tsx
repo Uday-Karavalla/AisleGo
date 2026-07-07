@@ -72,6 +72,11 @@ function AccountMenu() {
             My orders
           </Link>
         )}
+        {user.roles.includes('CUSTOMER') && (
+          <Link to="/addresses" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            My addresses
+          </Link>
+        )}
         <button
           type="button"
           onClick={handleLogout}

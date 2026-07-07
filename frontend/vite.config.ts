@@ -14,7 +14,7 @@ export default defineConfig({
         short_name: 'AisleGo',
         description:
           'Shop your local supermarkets online — browse the catalogue, pay, and track delivery from stores near you.',
-        theme_color: '#149566',
+        theme_color: '#0e7490',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',

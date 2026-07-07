@@ -10,6 +10,7 @@ import StoreDiscovery from './pages/StoreDiscovery'
 import Storefront from './pages/Storefront'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
+import Addresses from './pages/Addresses'
 import Orders from './pages/Orders'
 import OrderTracking from './pages/OrderTracking'
 import Login from './pages/Login'
@@ -39,6 +40,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="CUSTOMER">
                       <Orders />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/addresses"
+                  element={
+                    <ProtectedRoute requiredRole="CUSTOMER">
+                      <Addresses />
                     </ProtectedRoute>
                   }
                 />

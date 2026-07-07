@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { addressesApi } from '../api/addresses'
@@ -178,10 +178,15 @@ export default function Checkout() {
       <h1 className="text-xl font-extrabold text-ink">Checkout</h1>
 
       <section className="card flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
-          <MapPinIcon className="h-4 w-4 text-brand-600" />
-          Delivery address
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+            <MapPinIcon className="h-4 w-4 text-brand-600" />
+            Delivery address
+          </h2>
+          <Link to="/addresses" className="text-xs font-semibold text-brand-700">
+            Manage
+          </Link>
+        </div>
 
         {fulfilmentType === 'PICKUP' ? (
           <p className="text-sm text-ink-muted">
