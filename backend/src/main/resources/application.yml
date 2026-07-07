@@ -35,6 +35,13 @@ spring:
           auth: true
           starttls:
             enable: true
+          # Explicit timeouts so a blocked/unreachable SMTP port (common on PaaS free tiers,
+          # which often filter outbound mail ports to prevent spam abuse) fails fast instead of
+          # hanging the request thread - and the Hikari connection it holds, since this runs
+          # inside AuthService's @Transactional registration - indefinitely.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 # Adding spring-boot-starter-mail auto-registers a mail health contributor that actually
 # opens an SMTP connection - with the zero-setup `mock` email provider (no SMTP credentials
