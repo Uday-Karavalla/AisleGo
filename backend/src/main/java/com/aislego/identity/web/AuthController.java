@@ -10,6 +10,7 @@ import com.aislego.identity.dto.RegisterRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
 import com.aislego.identity.dto.UpdateAccountRequest;
+import com.aislego.identity.dto.VerifyEmailRequest;
 import com.aislego.identity.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -70,7 +71,7 @@ public class AuthController {
         if (principal == null) {
             throw new UnauthorizedException("Authentication is required");
         }
-        return ResponseEntity.ok(new MeResponse(principal.userId(), principal.email(), principal.roles()));
+        return ResponseEntity.ok(authService.getMe(principal.userId()));
     }
 
     /** Self-service email/password change - see {@link com.aislego.identity.service.AuthService#updateAccount}. */
@@ -81,5 +82,24 @@ public class AuthController {
             throw new UnauthorizedException("Authentication is required");
         }
         return ResponseEntity.ok(authService.updateAccount(principal.userId(), request));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@AuthenticationPrincipal AuthenticatedUser principal,
+                                             @Valid @RequestBody VerifyEmailRequest request) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication is required");
+        }
+        authService.verifyEmail(principal.userId(), request.code());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(@AuthenticationPrincipal AuthenticatedUser principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication is required");
+        }
+        authService.resendVerification(principal.userId());
+        return ResponseEntity.noContent().build();
     }
 }

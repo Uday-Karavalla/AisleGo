@@ -51,7 +51,7 @@ describe('Login', () => {
       tokenType: 'Bearer',
       expiresInMillis: 3600000,
     })
-    vi.mocked(authApi.me).mockResolvedValue({ id: 1, email: 'admin@aislego.com', roles: ['ADMIN'] })
+    vi.mocked(authApi.me).mockResolvedValue({ id: 1, email: 'admin@aislego.com', roles: ['ADMIN'], emailVerified: true })
 
     const user = userEvent.setup()
     renderLogin()
@@ -68,7 +68,12 @@ describe('Login', () => {
       tokenType: 'Bearer',
       expiresInMillis: 3600000,
     })
-    vi.mocked(authApi.me).mockResolvedValue({ id: 2, email: 'owner@store.com', roles: ['SUPERMARKET_OWNER'] })
+    vi.mocked(authApi.me).mockResolvedValue({
+      id: 2,
+      email: 'owner@store.com',
+      roles: ['SUPERMARKET_OWNER'],
+      emailVerified: true,
+    })
 
     const user = userEvent.setup()
     renderLogin()

@@ -7,10 +7,12 @@ import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
+import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.AuthResponse;
 import com.aislego.identity.dto.LoginRequest;
+import com.aislego.identity.dto.MeResponse;
 import com.aislego.identity.dto.RegisterRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
@@ -22,23 +24,31 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
 @Service
 public class AuthService {
 
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final int VERIFICATION_CODE_TTL_HOURS = 24;
+
     private final UserRepository userRepository;
     private final SupermarketRepository supermarketRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
 
     public AuthService(UserRepository userRepository, SupermarketRepository supermarketRepository,
-                        PasswordEncoder passwordEncoder, JwtService jwtService) {
+                        PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService) {
         this.userRepository = userRepository;
         this.supermarketRepository = supermarketRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -53,6 +63,7 @@ public class AuthService {
         user.setFullName(request.fullName());
         user.setPhone(request.phone());
         user.setRoles(Set.of(Role.CUSTOMER));
+        issueAndSendVerificationCode(user);
         user = userRepository.save(user);
 
         return issueTokens(user);
@@ -77,6 +88,7 @@ public class AuthService {
         user.setFullName(request.fullName());
         user.setPhone(request.phone());
         user.setRoles(Set.of(Role.SUPERMARKET_OWNER));
+        issueAndSendVerificationCode(user);
         user = userRepository.save(user);
 
         Supermarket supermarket = new Supermarket();
@@ -89,6 +101,19 @@ public class AuthService {
         supermarket = supermarketRepository.save(supermarket);
 
         return new SupermarketOwnerAuthResponse(issueTokens(user), supermarket.getId(), supermarket.getStatus().name());
+    }
+
+    /**
+     * Backs {@code GET /api/auth/me} with a fresh DB read rather than trusting the JWT's
+     * baked-in claims - {@code emailVerified} can change (via {@link #verifyEmail}) without a
+     * new token being issued, so the JWT alone would go stale.
+     */
+    @Transactional(readOnly = true)
+    public MeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Account no longer exists"));
+        List<String> roles = user.getRoles().stream().map(Enum::name).toList();
+        return new MeResponse(user.getId(), user.getEmail(), roles, user.isEmailVerified());
     }
 
     @Transactional(readOnly = true)
@@ -122,10 +147,16 @@ public class AuthService {
         }
 
         String newEmail = request.email().toLowerCase();
-        if (!newEmail.equals(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
+        boolean emailChanged = !newEmail.equals(user.getEmail());
+        if (emailChanged && userRepository.existsByEmail(newEmail)) {
             throw new ConflictException("EMAIL_TAKEN", "An account with this email already exists");
         }
         user.setEmail(newEmail);
+        // A verification code only proves the *old* address was reachable - changing to a new
+        // address must be re-verified before it counts as genuine again.
+        if (emailChanged) {
+            issueAndSendVerificationCode(user);
+        }
 
         if (request.newPassword() != null && !request.newPassword().isBlank()) {
             if (request.newPassword().length() < 8) {
@@ -136,6 +167,54 @@ public class AuthService {
         userRepository.save(user);
 
         return issueTokens(user);
+    }
+
+    /**
+     * Confirms the code sent to the user's own email and marks it verified. Codes expire
+     * after {@value #VERIFICATION_CODE_TTL_HOURS} hours; an expired or already-verified state
+     * both surface as the same generic "invalid or expired" message rather than distinguishing
+     * them, so a stale code can't be used to probe whether verification already happened.
+     */
+    @Transactional
+    public void verifyEmail(Long userId, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Account no longer exists"));
+
+        if (user.isEmailVerified()) {
+            return;
+        }
+        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(code)
+                || user.getVerificationCodeExpiresAt() == null
+                || user.getVerificationCodeExpiresAt().isBefore(Instant.now())) {
+            throw new BadRequestException("This verification code is invalid or has expired");
+        }
+
+        user.setEmailVerified(true);
+        user.setVerificationCode(null);
+        user.setVerificationCodeExpiresAt(null);
+        userRepository.save(user);
+    }
+
+    /** Re-sends a fresh code to the caller's own (already on-file) email address. */
+    @Transactional
+    public void resendVerification(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Account no longer exists"));
+
+        if (user.isEmailVerified()) {
+            throw new ConflictException("ALREADY_VERIFIED", "This email is already verified");
+        }
+        issueAndSendVerificationCode(user);
+        userRepository.save(user);
+    }
+
+    /** Generates a fresh 6-digit code, stores it (unverified) on the user, and emails it. */
+    private void issueAndSendVerificationCode(User user) {
+        String code = String.format("%06d", RANDOM.nextInt(1_000_000));
+        user.setEmailVerified(false);
+        user.setVerificationCode(code);
+        user.setVerificationCodeExpiresAt(Instant.now().plus(VERIFICATION_CODE_TTL_HOURS, ChronoUnit.HOURS));
+        emailService.sendVerificationCode(user.getEmail(), user.getFullName(), code);
     }
 
     @Transactional(readOnly = true)

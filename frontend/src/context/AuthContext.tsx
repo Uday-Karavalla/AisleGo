@@ -8,6 +8,7 @@ export interface AuthUser {
   id: number
   email: string
   roles: string[]
+  emailVerified: boolean
 }
 
 interface AuthContextValue {
@@ -17,6 +18,8 @@ interface AuthContextValue {
   logout: () => void
   register: (payload: RegisterPayload) => Promise<AuthUser>
   registerSupermarketOwner: (payload: RegisterSupermarketOwnerPayload) => Promise<AuthUser>
+  verifyEmail: (code: string) => Promise<void>
+  resendVerification: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -79,9 +82,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const verifyEmail = useCallback(async (code: string) => {
+    await authApi.verifyEmail(code)
+    const me = await authApi.me()
+    setUser(me)
+  }, [])
+
+  const resendVerification = useCallback(async () => {
+    await authApi.resendVerification()
+  }, [])
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, login, logout, register, registerSupermarketOwner }),
-    [user, isLoading, login, logout, register, registerSupermarketOwner],
+    () => ({
+      user,
+      isLoading,
+      login,
+      logout,
+      register,
+      registerSupermarketOwner,
+      verifyEmail,
+      resendVerification,
+    }),
+    [user, isLoading, login, logout, register, registerSupermarketOwner, verifyEmail, resendVerification],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

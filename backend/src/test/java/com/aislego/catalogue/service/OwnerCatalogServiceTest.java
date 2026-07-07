@@ -13,8 +13,10 @@ import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.CategoryRepository;
 import com.aislego.catalogue.repository.ProductRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.common.exception.ForbiddenException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
+import com.aislego.identity.domain.User;
 import com.aislego.inventory.domain.Inventory;
 import com.aislego.inventory.repository.InventoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,9 +68,25 @@ class OwnerCatalogServiceTest {
 
     @BeforeEach
     void setUp() {
+        User verifiedOwner = new User();
+        verifiedOwner.setId(OWNER_ID);
+        verifiedOwner.setEmailVerified(true);
+
         mySupermarket = new Supermarket();
         mySupermarket.setId(MY_SUPERMARKET_ID);
         mySupermarket.setName("My Store");
+        mySupermarket.setOwner(verifiedOwner);
+    }
+
+    @Test
+    void createBranchRejectsAnUnverifiedOwner() {
+        mySupermarket.getOwner().setEmailVerified(false);
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+
+        assertThatThrownBy(() -> service.createBranch(OWNER_ID,
+                new CreateBranchRequest("Main Branch", "12 Market Road", "Springfield", 12.9, 77.6, "09:00", "21:00")))
+                .isInstanceOf(ForbiddenException.class);
+        verify(branchRepository, never()).save(any());
     }
 
     @Test

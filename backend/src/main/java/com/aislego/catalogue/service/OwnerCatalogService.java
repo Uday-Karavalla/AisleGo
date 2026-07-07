@@ -15,6 +15,7 @@ import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.CategoryRepository;
 import com.aislego.catalogue.repository.ProductRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.common.exception.ForbiddenException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
 import com.aislego.inventory.domain.Inventory;
@@ -66,6 +67,7 @@ public class OwnerCatalogService {
 
     public BranchResponse createBranch(Long ownerId, CreateBranchRequest request) {
         Supermarket supermarket = getOwnedSupermarket(ownerId);
+        requireVerifiedOwner(supermarket);
 
         Branch branch = new Branch();
         branch.setSupermarket(supermarket);
@@ -91,6 +93,7 @@ public class OwnerCatalogService {
 
     public OwnerProductResponse createProduct(Long ownerId, CreateProductRequest request) {
         Supermarket supermarket = getOwnedSupermarket(ownerId);
+        requireVerifiedOwner(supermarket);
         Branch branch = findOwnedBranch(supermarket, request.branchId());
 
         Product product = new Product();
@@ -168,6 +171,16 @@ public class OwnerCatalogService {
     private Supermarket getOwnedSupermarket(Long ownerId) {
         return supermarketRepository.findByOwnerId(ownerId)
                 .orElseThrow(() -> new NotFoundException("No supermarket is registered to this account"));
+    }
+
+    /** A store can only start going live (adding branches/products) once its owner's email is
+     *  verified - stops a fake-email signup from ever reaching real customers. Reading and
+     *  updating stock ({@link #updateInventory}) stays open once a branch/product exists, so
+     *  fixing a typo doesn't itself require re-verification. */
+    private void requireVerifiedOwner(Supermarket supermarket) {
+        if (!supermarket.getOwner().isEmailVerified()) {
+            throw new ForbiddenException("EMAIL_NOT_VERIFIED", "Please verify your email before setting up your store");
+        }
     }
 
     private Branch findOwnedBranch(Supermarket supermarket, Long branchId) {

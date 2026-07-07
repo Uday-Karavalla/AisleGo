@@ -44,6 +44,14 @@ function AccountMenu() {
       </summary>
       <div className="absolute right-0 top-10 z-40 w-52 rounded-xl border border-black/5 bg-white p-2 shadow-card">
         <p className="truncate px-2 py-1 text-xs text-ink-muted">{user.email}</p>
+        {!user.emailVerified && (
+          <Link
+            to="/verify-email"
+            className="block rounded-lg bg-warning-50 px-2 py-1.5 text-sm font-semibold text-warning-500 hover:bg-warning-50/70"
+          >
+            Verify your email
+          </Link>
+        )}
         {user.roles.includes('ADMIN') && (
           <Link to="/admin" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             Admin — pending stores

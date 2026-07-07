@@ -15,6 +15,7 @@ import Orders from './pages/Orders'
 import OrderTracking from './pages/OrderTracking'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import VerifyEmail from './pages/VerifyEmail'
 import RegisterSupermarketOwner from './pages/RegisterSupermarketOwner'
 import AdminSupermarkets from './pages/AdminSupermarkets'
 import AdminOrders from './pages/AdminOrders'
@@ -34,7 +35,14 @@ function App() {
                 <Route path="/stores" element={<StoreDiscovery />} />
                 <Route path="/stores/:storeId" element={<Storefront />} />
                 <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout />} />
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedRoute requiredRole="CUSTOMER">
+                      <Checkout />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/orders"
                   element={
@@ -54,6 +62,14 @@ function App() {
                 <Route path="/orders/:orderId" element={<OrderTracking />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route
+                  path="/verify-email"
+                  element={
+                    <ProtectedRoute>
+                      <VerifyEmail />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/register-store" element={<RegisterSupermarketOwner />} />
                 <Route
                   path="/admin"

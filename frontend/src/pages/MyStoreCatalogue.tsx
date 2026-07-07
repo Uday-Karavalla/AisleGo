@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { supermarketOwnerApi } from '../api/supermarket'
 import type { NewOwnerBranch, NewOwnerProduct, OwnerBranch, OwnerProduct } from '../api/supermarket'
 import { EmptyState } from '../components/EmptyState'
@@ -29,9 +31,12 @@ const EMPTY_PRODUCT_DRAFT = {
 
 /** Self-service catalogue management: an owner sets up their branch (required before their
  *  store can ever appear in customer discovery - see `StoreDiscoveryService`) and manages
- *  products/stock from here. Available regardless of verification status so an owner can
- *  finish setting up their catalogue while waiting on admin review. */
+ *  products/stock from here. Creating a *new* branch/product is blocked until the owner's
+ *  email is verified (stops a fake-email signup from ever reaching real customers); viewing
+ *  and editing what already exists stays open regardless of admin-review status, so an owner
+ *  can keep managing their catalogue while waiting on approval. */
 export default function MyStoreCatalogue() {
+  const { user } = useAuth()
   const [branches, setBranches] = useState<OwnerBranch[]>([])
   const [products, setProducts] = useState<OwnerProduct[]>([])
   const [status, setStatus] = useState<Status>('loading')
@@ -167,7 +172,14 @@ export default function MyStoreCatalogue() {
       <section className="card flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink">Branch</h2>
 
-        {branches.length === 0 ? (
+        {branches.length === 0 && user && !user.emailVerified ? (
+          <div className="flex flex-col gap-2 rounded-2xl bg-warning-50 p-3 text-sm text-warning-500">
+            <p>Verify your email before setting up your branch — this keeps every live store genuine.</p>
+            <Link to="/verify-email" className="btn-primary self-start px-4 py-2 text-xs">
+              Verify email
+            </Link>
+          </div>
+        ) : branches.length === 0 ? (
           <form onSubmit={handleCreateBranch} className="flex flex-col gap-2">
             <p className="text-sm text-ink-muted">
               Add your branch's location before adding products — customers can't discover your store without one.

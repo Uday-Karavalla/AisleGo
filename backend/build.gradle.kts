@@ -48,6 +48,10 @@ dependencies {
     // (no extra dependency) remains the zero-setup default.
     implementation("com.razorpay:razorpay-java:1.4.5")
 
+    // Email - SMTP sending is opt-in via aislego.email.provider=smtp; LoggingEmailService
+    // (no extra setup) remains the zero-setup default, same pattern as payments/routing/notifications.
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+
     // Boilerplate reduction
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

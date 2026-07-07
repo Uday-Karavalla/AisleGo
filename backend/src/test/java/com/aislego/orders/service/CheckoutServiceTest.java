@@ -6,6 +6,7 @@ import com.aislego.catalogue.domain.Branch;
 import com.aislego.catalogue.domain.Product;
 import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.repository.BranchRepository;
+import com.aislego.common.exception.ForbiddenException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
 import com.aislego.identity.domain.User;
@@ -170,6 +171,7 @@ class CheckoutServiceTest {
         Branch branch = buildBranch();
         Address address = buildAddress(50L, USER_ID);
 
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildCustomer()));
         when(orderRepository.findByUserIdAndIdempotencyKey(USER_ID, "key-2")).thenReturn(Optional.empty());
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cart));
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
@@ -195,6 +197,7 @@ class CheckoutServiceTest {
         Cart cart = buildCart();
         Branch branch = buildBranch();
 
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildCustomer()));
         when(orderRepository.findByUserIdAndIdempotencyKey(USER_ID, "key-3")).thenReturn(Optional.empty());
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cart));
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
@@ -205,12 +208,25 @@ class CheckoutServiceTest {
         verify(orderRepository, never()).save(any());
     }
 
+    @Test
+    void checkoutRejectsAnUnverifiedEmail() {
+        User unverified = buildCustomer();
+        unverified.setEmailVerified(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(unverified));
+
+        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-4", new CheckoutRequest(BRANCH_ID, null)))
+                .isInstanceOf(ForbiddenException.class);
+        verify(cartRepository, never()).findByUserId(any());
+        verify(orderRepository, never()).save(any());
+    }
+
     private User buildCustomer() {
         User user = new User();
         user.setId(USER_ID);
         user.setFullName("Jane Customer");
         user.setEmail("jane@example.com");
         user.setPhone("+15559998888");
+        user.setEmailVerified(true);
         return user;
     }
 

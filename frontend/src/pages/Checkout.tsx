@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { addressesApi } from '../api/addresses'
 import type { Address, NewAddress } from '../api/addresses'
@@ -37,6 +38,7 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: string }[] = [
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { cart, isEmpty, clearCart } = useCart()
   const [, setLastOrderId] = useLocalStorage<string | null>('aislego.lastOrderId', null)
 
@@ -72,6 +74,20 @@ export default function Checkout() {
 
   if (isEmpty) {
     return <Navigate to="/cart" replace />
+  }
+
+  if (user && !user.emailVerified) {
+    return (
+      <div className="flex flex-col items-center gap-4 px-5 py-16 text-center">
+        <h1 className="text-lg font-bold text-ink">Please verify your email first</h1>
+        <p className="text-sm text-ink-muted">
+          To keep orders genuine, you need to verify your email before placing one.
+        </p>
+        <Link to="/verify-email" className="btn-primary">
+          Verify email
+        </Link>
+      </div>
+    )
   }
 
   async function handleAddAddress(event: FormEvent) {

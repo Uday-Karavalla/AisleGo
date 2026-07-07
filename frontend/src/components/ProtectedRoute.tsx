@@ -3,7 +3,9 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 interface ProtectedRouteProps {
-  requiredRole: string
+  /** Omit to only require "logged in, any role" - used by account-level pages like
+   *  email verification that aren't specific to a customer/owner/admin. */
+  requiredRole?: string
   children?: ReactNode
 }
 
@@ -20,7 +22,7 @@ export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) 
     return <Navigate to="/login" replace />
   }
 
-  if (!user.roles.includes(requiredRole)) {
+  if (requiredRole && !user.roles.includes(requiredRole)) {
     return <Navigate to="/" replace />
   }
 

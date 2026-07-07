@@ -6,6 +6,7 @@ import com.aislego.catalogue.domain.Branch;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
+import com.aislego.common.exception.ForbiddenException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
 import com.aislego.identity.domain.User;
@@ -98,6 +99,12 @@ public class CheckoutService {
 
     @Transactional
     public CheckoutResponse checkout(Long userId, String idempotencyKey, CheckoutRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Account no longer exists"));
+        if (!user.isEmailVerified()) {
+            throw new ForbiddenException("EMAIL_NOT_VERIFIED", "Please verify your email before placing an order");
+        }
+
         Optional<Order> existing = orderRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
         if (existing.isPresent()) {
             Order order = existing.get();

@@ -13,6 +13,7 @@ export interface MeResponse {
   id: number
   email: string
   roles: string[]
+  emailVerified: boolean
 }
 
 export interface RegisterPayload {
@@ -55,4 +56,8 @@ export const authApi = {
     api.post<RegisterSupermarketOwnerResponse>('/auth/register-supermarket-owner', payload),
 
   me: () => api.get<MeResponse>('/auth/me'),
+
+  verifyEmail: (code: string) => api.post<void>('/auth/verify-email', { code }),
+
+  resendVerification: () => api.post<void>('/auth/resend-verification'),
 }

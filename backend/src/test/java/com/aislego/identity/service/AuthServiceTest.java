@@ -7,6 +7,7 @@ import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
+import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
@@ -42,6 +43,8 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtService jwtService;
+    @Mock
+    private EmailService emailService;
 
     private AuthService authService;
 
@@ -51,7 +54,7 @@ class AuthServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, supermarketRepository, passwordEncoder, jwtService);
+        authService = new AuthService(userRepository, supermarketRepository, passwordEncoder, jwtService, emailService);
     }
 
     @Test

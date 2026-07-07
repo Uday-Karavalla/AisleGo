@@ -49,6 +49,12 @@ vi.mock('../context/CartContext', () => ({
   }),
 }))
 
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, email: 'jane@example.com', roles: ['CUSTOMER'], emailVerified: true },
+  }),
+}))
+
 vi.mock('../api/orders', async () => {
   const actual = await vi.importActual<typeof import('../api/orders')>('../api/orders')
   return {
