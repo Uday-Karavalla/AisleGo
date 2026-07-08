@@ -5,11 +5,13 @@ import com.aislego.catalogue.domain.SupermarketStatus;
 import com.aislego.catalogue.repository.SupermarketRepository;
 import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
+import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
 import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
+import com.aislego.identity.dto.AdminResetPasswordRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
 import com.aislego.identity.dto.UpdateAccountRequest;
@@ -198,5 +200,27 @@ class AuthServiceTest {
 
         assertThat(user.getPasswordHash()).isEqualTo("old-hash");
         verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void adminResetPasswordChangesTheTargetUsersPasswordHashWithoutNeedingTheOldOne() {
+        User user = buildUser();
+        when(userRepository.findByEmail("admin@aislego.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("brand-new-password")).thenReturn("brand-new-hash");
+
+        authService.adminResetPassword(new AdminResetPasswordRequest("admin@aislego.com", "brand-new-password"));
+
+        assertThat(user.getPasswordHash()).isEqualTo("brand-new-hash");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void adminResetPasswordThrowsNotFoundForAnUnknownEmail() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.adminResetPassword(
+                new AdminResetPasswordRequest("nobody@example.com", "brand-new-password")))
+                .isInstanceOf(NotFoundException.class);
+        verify(userRepository, never()).save(any());
     }
 }

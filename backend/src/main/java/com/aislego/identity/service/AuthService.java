@@ -5,11 +5,13 @@ import com.aislego.catalogue.domain.SupermarketStatus;
 import com.aislego.catalogue.repository.SupermarketRepository;
 import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
+import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
 import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
+import com.aislego.identity.dto.AdminResetPasswordRequest;
 import com.aislego.identity.dto.AuthResponse;
 import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.MeResponse;
@@ -114,6 +116,19 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("Account no longer exists"));
         List<String> roles = user.getRoles().stream().map(Enum::name).toList();
         return new MeResponse(user.getId(), user.getEmail(), roles, user.isEmailVerified());
+    }
+
+    /**
+     * Admin-only account recovery: resets any user's password by email with no current
+     * password required, unlike {@link #updateAccount}'s self-service change. For recovering
+     * access to an account whose password was lost, not for routine credential changes.
+     */
+    @Transactional
+    public void adminResetPassword(AdminResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.email().toLowerCase())
+                .orElseThrow(() -> new NotFoundException("No account found with this email"));
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 
     @Transactional(readOnly = true)
