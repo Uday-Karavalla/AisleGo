@@ -33,4 +33,11 @@ EXPOSE 8080
 # compiler threads since a shared/throttled CPU gains little from extra compiler parallelism
 # but pays for it in contention. Without this the JVM's default sizing assumes far more
 # headroom than a free-tier container actually has, leading to OOM kills under any real load.
-ENTRYPOINT ["java", "-Xmx350m", "-Xss256k", "-XX:MaxMetaspaceSize=96m", "-XX:CICompilerCount=2", "-jar", "/app/app.jar"]
+#
+# MaxMetaspaceSize was originally 96m, which worked when this was first tuned - but the app
+# has grown a lot since (notifications, email, admin, addresses modules and their beans all
+# added class metadata), and it started hitting a genuine `OutOfMemoryError: Metaspace` in
+# production. Bumped to 160m (with heap trimmed to 260m to keep the total budget similar) -
+# verified this fits under a hard --memory=512m container limit under real request load, not
+# just guessed.
+ENTRYPOINT ["java", "-Xmx260m", "-Xss256k", "-XX:MaxMetaspaceSize=160m", "-XX:CICompilerCount=2", "-jar", "/app/app.jar"]
