@@ -44,8 +44,8 @@ public class ResendEmailService implements EmailService {
         this(fromAddress, fromName, RestClient.builder()
                 .baseUrl("https://api.resend.com")
                 .requestFactory(ClientHttpRequestFactories.get(ClientHttpRequestFactorySettings.DEFAULTS
-                        .withConnectTimeout(Duration.ofSeconds(5))
-                        .withReadTimeout(Duration.ofSeconds(5))))
+                        .withConnectTimeout(Duration.ofSeconds(15))
+                        .withReadTimeout(Duration.ofSeconds(15))))
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build());
     }
