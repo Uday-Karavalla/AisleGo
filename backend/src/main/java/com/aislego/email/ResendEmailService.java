@@ -3,9 +3,12 @@ package com.aislego.email;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.web.client.ClientHttpRequestFactories;
+import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +23,11 @@ import java.util.Map;
  * abuse) - the connection either hangs or fails outright regardless of credentials. An HTTPS
  * API call goes out over port 443, the one port every PaaS host reliably allows, sidestepping
  * that restriction entirely.
+ *
+ * <p>Explicit connect/read timeouts, same reasoning as the SMTP path's {@code spring.mail}
+ * timeouts: this runs inside {@code AuthService}'s {@code @Transactional} registration, so an
+ * unbounded hang here would tie up a request thread and its Hikari connection for as long as
+ * the OS-level TCP timeout.
  */
 @Service
 @ConditionalOnProperty(name = "aislego.email.provider", havingValue = "resend")
@@ -35,6 +43,9 @@ public class ResendEmailService implements EmailService {
                                @Value("${aislego.email.from-name}") String fromName) {
         this(fromAddress, fromName, RestClient.builder()
                 .baseUrl("https://api.resend.com")
+                .requestFactory(ClientHttpRequestFactories.get(ClientHttpRequestFactorySettings.DEFAULTS
+                        .withConnectTimeout(Duration.ofSeconds(5))
+                        .withReadTimeout(Duration.ofSeconds(5))))
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build());
     }
