@@ -97,6 +97,8 @@ aislego:
     provider: ${EMAIL_PROVIDER:mock}
     from-address: ${EMAIL_FROM_ADDRESS:}
     from-name: ${EMAIL_FROM_NAME:AisleGo}
+    resend:
+      api-key: ${RESEND_API_KEY:}
 
 logging:
   level:

@@ -3,6 +3,7 @@ package com.aislego.catalogue.routing;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -42,6 +43,7 @@ public class OpenRouteServiceRoutingService implements RoutingService {
     private final RestClient restClient;
     private final String apiKey;
 
+    @Autowired
     public OpenRouteServiceRoutingService(@Value("${aislego.routing.openrouteservice.api-key}") String apiKey) {
         this(apiKey, RestClient.builder().baseUrl(BASE_URL).build());
     }

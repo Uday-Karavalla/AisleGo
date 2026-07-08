@@ -2,6 +2,7 @@ package com.aislego.notifications;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -35,6 +36,7 @@ public class TwilioSmsNotificationService implements NotificationService {
     private final String accountSid;
     private final String fromNumber;
 
+    @Autowired
     public TwilioSmsNotificationService(@Value("${aislego.notifications.twilio.account-sid}") String accountSid,
                                          @Value("${aislego.notifications.twilio.auth-token}") String authToken,
                                          @Value("${aislego.notifications.twilio.from-number}") String fromNumber) {
