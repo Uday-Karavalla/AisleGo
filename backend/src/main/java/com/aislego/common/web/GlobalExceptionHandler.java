@@ -15,6 +15,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
@@ -76,6 +78,32 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex,
                                                                   HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "You do not have permission to do this", request, null);
+    }
+
+    /**
+     * A call this server made to a third-party API (Resend, Twilio, Razorpay, OpenRouteService)
+     * came back non-2xx. Unlike the generic catch-all below, the downstream service's own
+     * error message is safe to surface - it describes what's wrong with *our* request/config,
+     * not anything about the calling user - and is genuinely useful for diagnosing integration
+     * failures instead of a blanket "Something went wrong."
+     */
+    @ExceptionHandler(HttpStatusCodeException.class)
+    public ResponseEntity<ApiErrorResponse> handleDownstreamHttpError(HttpStatusCodeException ex,
+                                                                        HttpServletRequest request) {
+        log.error("Downstream API call failed on {}: {} {}", request.getRequestURI(), ex.getStatusCode(),
+                ex.getResponseBodyAsString());
+        return build(HttpStatus.BAD_GATEWAY, "DOWNSTREAM_ERROR",
+                "A third-party service rejected this request: " + ex.getResponseBodyAsString(), request, null);
+    }
+
+    /** A call this server made to a third-party API couldn't even connect (DNS, timeout,
+     *  connection refused) - same "safe to surface" reasoning as above. */
+    @ExceptionHandler(ResourceAccessException.class)
+    public ResponseEntity<ApiErrorResponse> handleDownstreamNetworkError(ResourceAccessException ex,
+                                                                           HttpServletRequest request) {
+        log.error("Downstream API call unreachable on {}: {}", request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.BAD_GATEWAY, "DOWNSTREAM_UNAVAILABLE",
+                "A third-party service could not be reached: " + ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(Exception.class)
