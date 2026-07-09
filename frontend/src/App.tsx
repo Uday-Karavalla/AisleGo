@@ -22,6 +22,9 @@ import AdminOrders from './pages/AdminOrders'
 import MySupermarketStatus from './pages/MySupermarketStatus'
 import MyStoreCatalogue from './pages/MyStoreCatalogue'
 import MyStoreOrders from './pages/MyStoreOrders'
+import Terms from './pages/legal/Terms'
+import PrivacyPolicy from './pages/legal/PrivacyPolicy'
+import RefundPolicy from './pages/legal/RefundPolicy'
 
 function App() {
   return (
@@ -71,6 +74,9 @@ function App() {
                   }
                 />
                 <Route path="/register-store" element={<RegisterSupermarketOwner />} />
+                <Route path="/legal/terms" element={<Terms />} />
+                <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+                <Route path="/legal/refunds" element={<RefundPolicy />} />
                 <Route
                   path="/admin"
                   element={

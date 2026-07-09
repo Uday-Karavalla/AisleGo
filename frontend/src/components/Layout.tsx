@@ -29,6 +29,22 @@ function AccountMenu() {
     )
   }
 
+  function LegalLinks() {
+    return (
+      <div className="mt-1 flex flex-col gap-0.5 border-t border-black/5 pt-1">
+        <Link to="/legal/terms" className="block rounded-lg px-2 py-1.5 text-xs text-ink-faint hover:bg-black/5">
+          Terms of Service
+        </Link>
+        <Link to="/legal/privacy" className="block rounded-lg px-2 py-1.5 text-xs text-ink-faint hover:bg-black/5">
+          Privacy Policy
+        </Link>
+        <Link to="/legal/refunds" className="block rounded-lg px-2 py-1.5 text-xs text-ink-faint hover:bg-black/5">
+          Refund &amp; Cancellation Policy
+        </Link>
+      </div>
+    )
+  }
+
   function handleLogout() {
     logout()
     navigate('/')
@@ -92,6 +108,7 @@ function AccountMenu() {
         >
           Log out
         </button>
+        <LegalLinks />
       </div>
     </details>
   )

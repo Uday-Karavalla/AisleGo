@@ -383,6 +383,14 @@ export default function Checkout() {
           </>
         )}
       </button>
+
+      <p className="text-center text-xs text-ink-faint">
+        By placing this order, you agree to our{' '}
+        <Link to="/legal/refunds" className="font-semibold text-brand-700">
+          Refund &amp; Cancellation Policy
+        </Link>
+        .
+      </p>
     </div>
   )
 }

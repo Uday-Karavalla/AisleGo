@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../api/client'
 import type { RegisterSupermarketOwnerPayload } from '../api/auth'
@@ -127,6 +127,18 @@ export default function RegisterSupermarketOwner() {
           {submitting ? 'Submitting…' : 'Submit for review'}
         </button>
       </form>
+
+      <p className="text-center text-xs text-ink-faint">
+        By registering, you agree to AisleGo's{' '}
+        <Link to="/legal/terms" className="font-semibold text-brand-700">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link to="/legal/privacy" className="font-semibold text-brand-700">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   )
 }

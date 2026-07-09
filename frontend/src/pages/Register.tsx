@@ -96,6 +96,18 @@ export default function Register() {
         </button>
       </form>
 
+      <p className="text-center text-xs text-ink-faint">
+        By creating an account, you agree to AisleGo's{' '}
+        <Link to="/legal/terms" className="font-semibold text-brand-700">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link to="/legal/privacy" className="font-semibold text-brand-700">
+          Privacy Policy
+        </Link>
+        .
+      </p>
+
       <p className="text-center text-sm text-ink-muted">
         Already have an account?{' '}
         <Link to="/login" className="font-semibold text-brand-700">
