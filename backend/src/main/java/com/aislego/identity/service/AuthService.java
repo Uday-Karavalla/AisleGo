@@ -22,6 +22,8 @@ import com.aislego.identity.dto.UpdateAccountRequest;
 import com.aislego.identity.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ import java.util.Set;
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int VERIFICATION_CODE_TTL_HOURS = 24;
 
@@ -223,13 +226,27 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    /** Generates a fresh 6-digit code, stores it (unverified) on the user, and emails it. */
+    /**
+     * Generates a fresh 6-digit code, stores it (unverified) on the user, and emails it.
+     *
+     * <p>The email send is deliberately swallowed on failure rather than left to propagate:
+     * this is called from inside {@code register}/{@code registerSupermarketOwner}/
+     * {@code updateAccount}, all {@code @Transactional}, so an unhandled exception here (e.g. a
+     * mail provider rejecting the recipient) would roll back the whole transaction - silently
+     * discarding a brand-new account rather than just failing to deliver its verification code.
+     * The account still ends up correctly marked unverified; the user can retry via
+     * {@code resendVerification} once the delivery problem is resolved.
+     */
     private void issueAndSendVerificationCode(User user) {
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
         user.setEmailVerified(false);
         user.setVerificationCode(code);
         user.setVerificationCodeExpiresAt(Instant.now().plus(VERIFICATION_CODE_TTL_HOURS, ChronoUnit.HOURS));
-        emailService.sendVerificationCode(user.getEmail(), user.getFullName(), code);
+        try {
+            emailService.sendVerificationCode(user.getEmail(), user.getFullName(), code);
+        } catch (Exception ex) {
+            log.warn("Could not send verification email to {}: {}", user.getEmail(), ex.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

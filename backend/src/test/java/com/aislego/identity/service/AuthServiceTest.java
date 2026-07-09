@@ -112,6 +112,33 @@ class AuthServiceTest {
         verify(supermarketRepository, never()).save(any());
     }
 
+    @Test
+    void registerSupermarketOwnerStillCreatesTheAccountWhenSendingTheVerificationEmailFails() {
+        when(userRepository.existsByEmail(REQUEST.email())).thenReturn(false);
+        when(passwordEncoder.encode(REQUEST.password())).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(42L);
+            return user;
+        });
+        when(supermarketRepository.save(any(Supermarket.class))).thenAnswer(invocation -> {
+            Supermarket supermarket = invocation.getArgument(0);
+            supermarket.setId(7L);
+            return supermarket;
+        });
+        when(jwtService.generateAccessToken(anyLong(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(anyLong(), any(), any())).thenReturn("refresh-token");
+        when(jwtService.getAccessTokenTtlMillis()).thenReturn(900_000L);
+        org.mockito.Mockito.doThrow(new RuntimeException("Resend rejected the recipient"))
+                .when(emailService).sendVerificationCode(any(), any(), any());
+
+        SupermarketOwnerAuthResponse response = authService.registerSupermarketOwner(REQUEST);
+
+        verify(userRepository).save(any(User.class));
+        verify(supermarketRepository).save(any(Supermarket.class));
+        assertThat(response.auth().accessToken()).isEqualTo("access-token");
+    }
+
     private static final Long USER_ID = 1L;
 
     private User buildUser() {
