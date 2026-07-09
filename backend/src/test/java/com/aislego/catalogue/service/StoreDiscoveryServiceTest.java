@@ -1,11 +1,16 @@
 package com.aislego.catalogue.service;
 
+import com.aislego.catalogue.domain.Branch;
+import com.aislego.catalogue.domain.Supermarket;
+import com.aislego.catalogue.domain.SupermarketStatus;
+import com.aislego.catalogue.dto.BranchDetailResponse;
 import com.aislego.catalogue.dto.NearbyBranchResponse;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.NearbyBranchView;
 import com.aislego.catalogue.repository.SupermarketRepository;
 import com.aislego.catalogue.routing.RouteEstimate;
 import com.aislego.catalogue.routing.RoutingService;
+import com.aislego.common.exception.NotFoundException;
 import com.aislego.reviews.service.ReviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,8 +24,10 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -156,6 +163,69 @@ class StoreDiscoveryServiceTest {
 
         org.mockito.Mockito.verify(routingService, org.mockito.Mockito.times(1))
                 .estimateRoutes(any(), any());
+    }
+
+    private Branch branchOf(Long branchId, Supermarket supermarket) {
+        Branch branch = new Branch();
+        branch.setId(branchId);
+        branch.setSupermarket(supermarket);
+        branch.setName("Branch " + branchId);
+        branch.setAddressLine("Address " + branchId);
+        branch.setCity("Bengaluru");
+        branch.setLatitude(12.95);
+        branch.setLongitude(77.63);
+        branch.setOpeningTime("09:00");
+        branch.setClosingTime("21:00");
+        branch.setActive(true);
+        return branch;
+    }
+
+    @Test
+    void getBranchDetailResolvesTheSupermarketIdSeparatelyFromTheBranchId() {
+        StoreDiscoveryService service = serviceWithClockAt("12:00");
+
+        Supermarket supermarket = new Supermarket();
+        supermarket.setId(7L);
+        supermarket.setName("ValueMart");
+        supermarket.setStatus(SupermarketStatus.VERIFIED);
+        Branch branch = branchOf(5L, supermarket);
+
+        when(branchRepository.findById(5L)).thenReturn(Optional.of(branch));
+
+        BranchDetailResponse result = service.getBranchDetail(5L);
+
+        assertThat(result.branchId()).isEqualTo(5L);
+        assertThat(result.supermarketId()).isEqualTo(7L);
+        assertThat(result.isOpen()).isTrue();
+    }
+
+    @Test
+    void getBranchDetailThrowsNotFoundForAnInactiveBranch() {
+        StoreDiscoveryService service = serviceWithClockAt("12:00");
+
+        Supermarket supermarket = new Supermarket();
+        supermarket.setId(7L);
+        supermarket.setStatus(SupermarketStatus.VERIFIED);
+        Branch branch = branchOf(5L, supermarket);
+        branch.setActive(false);
+
+        when(branchRepository.findById(5L)).thenReturn(Optional.of(branch));
+
+        assertThatThrownBy(() -> service.getBranchDetail(5L)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void getBranchDetailThrowsNotFoundWhenTheSupermarketIsNotVerified() {
+        StoreDiscoveryService service = serviceWithClockAt("12:00");
+
+        Supermarket supermarket = new Supermarket();
+        supermarket.setId(7L);
+        supermarket.setStatus(SupermarketStatus.PENDING);
+        Branch branch = branchOf(5L, supermarket);
+
+        when(branchRepository.findById(5L)).thenReturn(Optional.of(branch));
+
+        assertThatThrownBy(() -> service.getBranchDetail(5L)).isInstanceOf(NotFoundException.class);
     }
 
     private record TestBranchView(Long id, String name, String addressLine, String city, Double latitude,

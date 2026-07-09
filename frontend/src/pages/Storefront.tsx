@@ -52,26 +52,36 @@ export default function Storefront() {
         setStoreStatus('success')
       })
       .catch(() => setStoreStatus('error'))
+  }, [storeId])
+
+  // The catalogue (products, categories, reviews) lives on the *supermarket*, shared across
+  // its branches - not on the branch the storeId route param actually identifies. Wait for
+  // `store` to resolve that mapping rather than guessing with storeId, which would silently
+  // fetch the wrong store's data whenever the two ids diverge (see stores.ts).
+  const supermarketId = store?.supermarketId
+
+  useEffect(() => {
+    if (!supermarketId) return
     productsApi
-      .categories(storeId)
+      .categories(supermarketId)
       .then(setCategories)
       .catch(() => {})
     reviewsApi
-      .list(storeId)
+      .list(supermarketId)
       .then(setStoreReviews)
       .catch(() => {})
-  }, [storeId])
+  }, [supermarketId])
 
   useEffect(() => {
-    if (!storeId || !user?.roles.includes('CUSTOMER')) {
+    if (!supermarketId || !user?.roles.includes('CUSTOMER')) {
       setMyReviewStatus(null)
       return
     }
     reviewsApi
-      .mine(storeId)
+      .mine(supermarketId)
       .then(setMyReviewStatus)
       .catch(() => {})
-  }, [storeId, user])
+  }, [supermarketId, user])
 
   function openReviewForm() {
     setReviewMessage(null)
@@ -84,11 +94,11 @@ export default function Storefront() {
 
   async function handleSubmitReview(event: FormEvent) {
     event.preventDefault()
-    if (!storeId) return
+    if (!supermarketId) return
     setReviewSubmitting(true)
     setReviewMessage(null)
     try {
-      const review = await reviewsApi.submit(storeId, {
+      const review = await reviewsApi.submit(supermarketId, {
         rating: reviewDraft.rating,
         comment: reviewDraft.comment || undefined,
       })
@@ -103,7 +113,7 @@ export default function Storefront() {
         }
       })
       setShowReviewForm(false)
-      if (storeId) reviewsApi.list(storeId).then(setStoreReviews).catch(() => {})
+      reviewsApi.list(supermarketId).then(setStoreReviews).catch(() => {})
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : 'Could not submit your review.')
     } finally {
@@ -121,12 +131,12 @@ export default function Storefront() {
   }, [debouncedSearch, category])
 
   useEffect(() => {
-    if (!storeId) return
+    if (!supermarketId) return
     let cancelled = false
     setProductsStatus('loading')
     productsApi
       .list({
-        storeId,
+        storeId: supermarketId,
         search: debouncedSearch || undefined,
         category: category ?? undefined,
         page,
@@ -144,7 +154,7 @@ export default function Storefront() {
     return () => {
       cancelled = true
     }
-  }, [storeId, debouncedSearch, category, page])
+  }, [supermarketId, debouncedSearch, category, page])
 
   function handleAddOrIncrement(product: Product) {
     if (!store) return

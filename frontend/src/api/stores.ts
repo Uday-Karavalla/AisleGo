@@ -5,6 +5,13 @@ export interface Store {
   id: string
   name: string
   logoUrl?: string
+  /**
+   * The supermarket this branch (`id`) belongs to - products, categories and reviews are
+   * fetched by this, not by `id`, since the catalogue is shared across a supermarket's
+   * branches. Undefined only for the offline fixture fallback, which has no real backend
+   * ids to resolve; callers should fall back to `id` in that case.
+   */
+  supermarketId?: string
   /** 0-5 average from `GET /api/stores/{id}/reviews`'s aggregate; absent when the store has no reviews yet. */
   rating?: number
   ratingCount?: number
@@ -52,16 +59,43 @@ function combineAddress(addressLine: string | null, city: string | null): string
 function fromNearbyBranch(branch: NearbyBranch): Store {
   return {
     // Deliberately branchId, not supermarketId: Checkout.tsx reads cart.storeId straight back
-    // as the branchId to order from. This does mean the storefront route (which fetches
-    // products/categories/reviews by *supermarket*) is keyed by a branch id that only matches
-    // its supermarket id by coincidence in today's seed data - see the note on Storefront.tsx's
-    // `supermarketId` resolution for the workaround, and the flagged pre-existing bug this
-    // surfaced (product browsing already had this same mismatch before reviews existed).
+    // as the branchId to order from.
     id: String(branch.branchId),
+    supermarketId: String(branch.supermarketId),
     name: branch.branchName,
     address: combineAddress(branch.addressLine, branch.city),
     distanceKm: branch.distanceKm,
     etaMinutes: branch.etaMinutes,
+    isOpen: branch.isOpen,
+    rating: branch.rating ?? undefined,
+    ratingCount: branch.ratingCount,
+  }
+}
+
+/** Raw shape of GET /api/stores/branches/{branchId} - resolves one branch by id, which is
+ *  what the storefront route navigates by. */
+interface BranchDetail {
+  branchId: number
+  branchName: string
+  addressLine: string | null
+  city: string | null
+  isOpen: boolean
+  supermarketId: number
+  supermarketName: string
+  logoUrl: string | null
+  rating: number | null
+  ratingCount: number
+}
+
+function fromBranchDetail(branch: BranchDetail): Store {
+  return {
+    id: String(branch.branchId),
+    supermarketId: String(branch.supermarketId),
+    name: branch.branchName,
+    logoUrl: branch.logoUrl ?? undefined,
+    address: combineAddress(branch.addressLine, branch.city),
+    distanceKm: 0,
+    etaMinutes: 0,
     isOpen: branch.isOpen,
     rating: branch.rating ?? undefined,
     ratingCount: branch.ratingCount,
@@ -88,7 +122,8 @@ export const storesApi = {
 
   async getById(storeId: string): Promise<Store> {
     try {
-      return await api.get<Store>(`/stores/${storeId}`)
+      const branch = await api.get<BranchDetail>(`/stores/branches/${storeId}`)
+      return fromBranchDetail(branch)
     } catch (error) {
       if (error instanceof ApiError && error.isNetworkError) {
         const fixture = FIXTURE_STORES.find((store) => store.id === storeId)

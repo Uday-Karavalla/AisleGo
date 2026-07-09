@@ -1,5 +1,6 @@
 package com.aislego.catalogue.web;
 
+import com.aislego.catalogue.dto.BranchDetailResponse;
 import com.aislego.catalogue.dto.CategoriesResponse;
 import com.aislego.catalogue.dto.NearbyBranchResponse;
 import com.aislego.catalogue.dto.SupermarketResponse;
@@ -41,6 +42,13 @@ public class StoreController {
     @GetMapping("/{supermarketId}")
     public SupermarketResponse get(@PathVariable Long supermarketId) {
         return storeDiscoveryService.getSupermarket(supermarketId);
+    }
+
+    /** Resolves one branch by id - what the storefront route actually navigates by. See
+     *  {@code StoreDiscoveryService#getBranchDetail}. */
+    @GetMapping("/branches/{branchId}")
+    public BranchDetailResponse getBranch(@PathVariable Long branchId) {
+        return storeDiscoveryService.getBranchDetail(branchId);
     }
 
     /** Distinct category names present in one store's catalogue, for the storefront's filter chips. */

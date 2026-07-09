@@ -1,7 +1,9 @@
 package com.aislego.catalogue.service;
 
+import com.aislego.catalogue.domain.Branch;
 import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.domain.SupermarketStatus;
+import com.aislego.catalogue.dto.BranchDetailResponse;
 import com.aislego.catalogue.dto.BranchResponse;
 import com.aislego.catalogue.dto.NearbyBranchResponse;
 import com.aislego.catalogue.dto.SupermarketResponse;
@@ -100,7 +102,8 @@ public class StoreDiscoveryService {
                 continue;
             }
             NearbyBranchView candidate = candidates.get(i);
-            results.add(NearbyBranchResponse.from(candidate, estimate, isOpen(candidate, now),
+            results.add(NearbyBranchResponse.from(candidate, estimate,
+                    isOpen(candidate.getOpeningTime(), candidate.getClosingTime(), now),
                     ratingSummaries.get(candidate.getSupermarketId())));
         }
 
@@ -117,9 +120,7 @@ public class StoreDiscoveryService {
      * against {@link LocalTime#now(Clock)} in the JVM's default zone: a known simplification,
      * there's no per-store/per-city timezone support yet.
      */
-    private boolean isOpen(NearbyBranchView branch, LocalTime now) {
-        String openingTime = branch.getOpeningTime();
-        String closingTime = branch.getClosingTime();
+    private boolean isOpen(String openingTime, String closingTime, LocalTime now) {
         if (openingTime == null || closingTime == null) {
             return true;
         }
@@ -150,5 +151,39 @@ public class StoreDiscoveryService {
 
         RatingSummaryView ratingSummary = reviewService.summarize(List.of(supermarketId)).get(supermarketId);
         return SupermarketResponse.from(supermarket, branches, ratingSummary);
+    }
+
+    /**
+     * Resolves a single branch by id - this is what the storefront route actually navigates
+     * by (see {@code NearbyBranchResponse}: "nearby" results are branches, not supermarkets,
+     * since distance/ETA/open-hours are branch-specific). {@code supermarketId} on the response
+     * is then what the frontend uses for the shared product catalogue/categories/reviews, which
+     * live on the supermarket - conflating the two was a real bug (branch id and supermarket id
+     * only coincide by accident in early seed data).
+     */
+    public BranchDetailResponse getBranchDetail(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new NotFoundException("Branch " + branchId + " was not found"));
+        Supermarket supermarket = branch.getSupermarket();
+
+        if (!branch.isActive() || supermarket.getStatus() != SupermarketStatus.VERIFIED) {
+            throw new NotFoundException("Branch " + branchId + " was not found");
+        }
+
+        RatingSummaryView ratingSummary = reviewService.summarize(List.of(supermarket.getId())).get(supermarket.getId());
+        boolean open = isOpen(branch.getOpeningTime(), branch.getClosingTime(), LocalTime.now(clock));
+
+        return new BranchDetailResponse(
+                branch.getId(),
+                branch.getName(),
+                branch.getAddressLine(),
+                branch.getCity(),
+                open,
+                supermarket.getId(),
+                supermarket.getName(),
+                supermarket.getLogoUrl(),
+                ratingSummary != null ? ratingSummary.getAverageRating() : null,
+                ratingSummary != null ? ratingSummary.getReviewCount() : 0
+        );
     }
 }
