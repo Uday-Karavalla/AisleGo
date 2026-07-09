@@ -15,7 +15,7 @@ export default function VerifyEmail() {
 
   if (user?.emailVerified) {
     return (
-      <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
+      <div className="page-narrow flex flex-col items-center gap-3 px-5 py-16 text-center">
         <CheckIcon className="h-10 w-10 text-brand-600" />
         <h1 className="text-lg font-bold text-ink">Your email is verified</h1>
         <button type="button" className="btn-primary" onClick={() => navigate('/')}>
@@ -56,7 +56,7 @@ export default function VerifyEmail() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-5 py-8">
+    <div className="page-narrow flex flex-col gap-6 px-5 py-8">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Verify your email</h1>
         <p className="mt-1 text-sm text-ink-muted">

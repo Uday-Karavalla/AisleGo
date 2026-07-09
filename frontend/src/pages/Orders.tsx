@@ -28,11 +28,11 @@ export default function Orders() {
   }, [])
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-6">
+    <div className="page-wide flex flex-col gap-4 px-5 py-6">
       <h1 className="text-xl font-extrabold text-ink">Your orders</h1>
 
       {status === 'loading' && (
-        <div className="flex flex-col gap-3" aria-label="Loading your orders">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading your orders">
           {[0, 1].map((key) => (
             <div key={key} className="card h-20 animate-pulse bg-black/5" />
           ))}
@@ -65,23 +65,26 @@ export default function Orders() {
         />
       )}
 
-      {status === 'success' &&
-        orders.map((order) => (
-          <Link key={order.id} to={`/orders/${order.id}`} className="card flex flex-col gap-2 active:scale-[0.99]">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-ink">Order #{order.id}</h2>
-              <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-ink-muted">
-                {ORDER_STAGE_LABELS[order.status]}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-ink-muted">{new Date(order.createdAt).toLocaleString()}</span>
-              <span className="font-bold text-ink">
-                {order.currency} {order.totalAmount.toFixed(2)}
-              </span>
-            </div>
-          </Link>
-        ))}
+      {status === 'success' && orders.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {orders.map((order) => (
+            <Link key={order.id} to={`/orders/${order.id}`} className="card flex flex-col gap-2 active:scale-[0.99]">
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold text-ink">Order #{order.id}</h2>
+                <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-ink-muted">
+                  {ORDER_STAGE_LABELS[order.status]}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-muted">{new Date(order.createdAt).toLocaleString()}</span>
+                <span className="font-bold text-ink">
+                  {order.currency} {order.totalAmount.toFixed(2)}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

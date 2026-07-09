@@ -26,7 +26,7 @@ export default function Cart() {
   }
 
   return (
-    <div className="flex flex-col gap-5 px-5 py-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">Ordering from</p>
         <h1 className="text-xl font-extrabold text-ink">{cart.storeName}</h1>

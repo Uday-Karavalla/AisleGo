@@ -68,7 +68,7 @@ export default function AdminSupermarkets() {
   }
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-6">
+    <div className="page-wide flex flex-col gap-4 px-5 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-extrabold text-ink">Pending supermarkets</h1>
         <Link to="/admin/orders" className="text-sm font-semibold text-brand-700">

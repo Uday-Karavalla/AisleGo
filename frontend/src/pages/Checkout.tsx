@@ -78,7 +78,7 @@ export default function Checkout() {
 
   if (user && !user.emailVerified) {
     return (
-      <div className="flex flex-col items-center gap-4 px-5 py-16 text-center">
+      <div className="page-narrow flex flex-col items-center gap-4 px-5 py-16 text-center">
         <h1 className="text-lg font-bold text-ink">Please verify your email first</h1>
         <p className="text-sm text-ink-muted">
           To keep orders genuine, you need to verify your email before placing one.
@@ -190,7 +190,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-5 py-6">
+    <div className="page-narrow flex flex-col gap-6 px-5 py-6">
       <h1 className="text-xl font-extrabold text-ink">Checkout</h1>
 
       <section className="card flex flex-col gap-3">

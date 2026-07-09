@@ -219,7 +219,7 @@ export default function MyStoreCatalogue() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-5 py-8">
+    <div className="page-wide flex flex-col gap-6 px-5 py-8">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Manage your store</h1>
         <p className="mt-1 text-sm text-ink-muted">Set up your branch and manage the products customers will see.</p>

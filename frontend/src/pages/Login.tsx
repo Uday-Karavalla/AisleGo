@@ -32,7 +32,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-5 py-8">
+    <div className="page-narrow flex flex-col gap-6 px-5 py-8">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Sign in</h1>
         <p className="mt-1 text-sm text-ink-muted">Customers, supermarket owners, and AisleGo admins all sign in here.</p>

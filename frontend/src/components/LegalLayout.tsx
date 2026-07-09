@@ -14,7 +14,7 @@ export function LegalLayout({
   children: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-6 px-5 py-8">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-8">
       <div>
         <h1 className="text-xl font-extrabold text-ink">{title}</h1>
         <p className="mt-1 text-xs text-ink-faint">Last updated {lastUpdated}</p>

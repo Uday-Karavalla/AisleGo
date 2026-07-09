@@ -166,7 +166,7 @@ export default function Storefront() {
   }
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-6">
+    <div className="page-wide flex flex-col gap-4 px-5 py-6">
       {store && (
         <div>
           <h1 className="text-xl font-extrabold text-ink">{store.name}</h1>
@@ -230,7 +230,7 @@ export default function Storefront() {
         <EmptyState title="No products found" description="Try a different search or category." />
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {products.map((product) => {
           const cartItem = cart.items.find((item) => item.productId === product.id)
           const quantityInCart = cartItem?.quantity ?? 0
@@ -252,7 +252,7 @@ export default function Storefront() {
       </div>
 
       {productsStatus === 'loading' && page === 1 && (
-        <div className="grid grid-cols-2 gap-3" aria-label="Loading products">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" aria-label="Loading products">
           {[0, 1, 2, 3].map((key) => (
             <div key={key} className="card h-36 animate-pulse bg-black/5" />
           ))}

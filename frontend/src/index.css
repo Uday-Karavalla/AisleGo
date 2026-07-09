@@ -35,4 +35,17 @@
   .input-field {
     @apply w-full rounded-2xl border border-black/10 bg-white px-4 py-3.5 text-base text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
   }
+
+  /* Browse/table-heavy pages (discovery, storefront, cart, orders, admin, owner dashboards):
+     fills the width on desktop instead of staying pinned to the old 480px phone-app column. */
+  .page-wide {
+    @apply mx-auto w-full max-w-7xl;
+  }
+
+  /* Single-focus forms (auth, checkout, verification, legal) stay a comfortable reading width
+     even on a wide screen - stretching a login form edge-to-edge would look broken, not "full
+     screen." Reuses the app's original 480px phone-app width, now opt-in per page. */
+  .page-narrow {
+    @apply mx-auto w-full max-w-app;
+  }
 }

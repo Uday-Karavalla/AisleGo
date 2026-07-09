@@ -40,14 +40,14 @@ export default function StoreDiscovery() {
   }
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-6">
+    <div className="page-wide flex flex-col gap-4 px-5 py-6">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Supermarkets near you</h1>
         <p className="text-sm text-ink-muted">Delivering to {location.label}</p>
       </div>
 
       {status === 'loading' && (
-        <div className="flex flex-col gap-3" aria-label="Loading nearby supermarkets">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading nearby supermarkets">
           {[0, 1, 2].map((key) => (
             <div key={key} className="card h-24 animate-pulse bg-black/5" />
           ))}
@@ -76,7 +76,7 @@ export default function StoreDiscovery() {
       )}
 
       {status === 'success' && stores.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {stores.map((store) => (
             <StoreCard key={store.id} store={store} onOpen={(selected) => navigate(`/stores/${selected.id}`)} />
           ))}
