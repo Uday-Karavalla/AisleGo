@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supermarketOwnerApi } from '../api/supermarket'
-import type { NewOwnerBranch, NewOwnerProduct, OwnerBranch, OwnerProduct } from '../api/supermarket'
+import type { NewOwnerBranch, NewOwnerProduct, OwnerBranch, OwnerProduct, UpdateOwnerProduct } from '../api/supermarket'
 import { EmptyState } from '../components/EmptyState'
 import { StoreIcon } from '../components/icons'
 
@@ -29,6 +29,28 @@ const EMPTY_PRODUCT_DRAFT = {
   initialStockQuantity: '0',
 }
 
+type EditProductDraft = {
+  name: string
+  description: string
+  price: string
+  currency: string
+  categoryName: string
+  imageUrl: string
+  active: boolean
+}
+
+function toEditDraft(product: OwnerProduct): EditProductDraft {
+  return {
+    name: product.name,
+    description: product.description ?? '',
+    price: String(product.price),
+    currency: product.currency,
+    categoryName: product.categoryName ?? '',
+    imageUrl: product.imageUrl ?? '',
+    active: product.active,
+  }
+}
+
 /** Self-service catalogue management: an owner sets up their branch (required before their
  *  store can ever appear in customer discovery - see `StoreDiscoveryService`) and manages
  *  products/stock from here. Creating a *new* branch/product is blocked until the owner's
@@ -49,6 +71,10 @@ export default function MyStoreCatalogue() {
   const [productSubmitting, setProductSubmitting] = useState(false)
 
   const [stockEdits, setStockEdits] = useState<Record<number, string>>({})
+
+  const [editingProductId, setEditingProductId] = useState<number | null>(null)
+  const [editDraft, setEditDraft] = useState<EditProductDraft | null>(null)
+  const [editSubmitting, setEditSubmitting] = useState(false)
 
   function load() {
     setStatus('loading')
@@ -119,6 +145,42 @@ export default function MyStoreCatalogue() {
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not update the product.')
+    }
+  }
+
+  function startEditProduct(product: OwnerProduct) {
+    setMessage(null)
+    setEditingProductId(product.id)
+    setEditDraft(toEditDraft(product))
+  }
+
+  function cancelEditProduct() {
+    setEditingProductId(null)
+    setEditDraft(null)
+  }
+
+  async function handleSaveProduct(event: FormEvent, product: OwnerProduct) {
+    event.preventDefault()
+    if (!editDraft) return
+    setEditSubmitting(true)
+    setMessage(null)
+    try {
+      const payload: UpdateOwnerProduct = {
+        name: editDraft.name,
+        description: editDraft.description || undefined,
+        price: Number(editDraft.price),
+        currency: editDraft.currency,
+        categoryName: editDraft.categoryName || undefined,
+        imageUrl: editDraft.imageUrl || undefined,
+        active: editDraft.active,
+      }
+      const updated = await supermarketOwnerApi.updateProduct(product.id, payload)
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+      cancelEditProduct()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not update the product.')
+    } finally {
+      setEditSubmitting(false)
     }
   }
 
@@ -317,47 +379,118 @@ export default function MyStoreCatalogue() {
 
         {products.length === 0 && <p className="text-sm text-ink-muted">No products yet — add your first one above.</p>}
 
-        {products.map((product) => (
-          <div key={product.id} className="card flex flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-ink">{product.name}</p>
-                <p className="text-xs text-ink-faint">
-                  {product.categoryName ?? 'Uncategorized'} · ₹{product.price.toFixed(2)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleToggleActive(product)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  product.active ? 'bg-brand-50 text-brand-700' : 'bg-danger-50 text-danger-500'
-                }`}
-              >
-                {product.active ? 'Active' : 'Inactive'}
-              </button>
-            </div>
-
-            {product.branchStock.map((stock) => (
-              <div key={stock.branchId} className="flex items-center gap-2 text-xs">
-                <span className="text-ink-muted">{stock.branchName} stock:</span>
+        {products.map((product) =>
+          editingProductId === product.id && editDraft ? (
+            <form
+              key={product.id}
+              onSubmit={(e) => handleSaveProduct(e, product)}
+              className="card flex flex-col gap-2"
+            >
+              <input
+                className="input-field"
+                placeholder="Product name"
+                value={editDraft.name}
+                onChange={(e) => setEditDraft((d) => (d ? { ...d, name: e.target.value } : d))}
+                required
+              />
+              <input
+                className="input-field"
+                placeholder="Description (optional)"
+                value={editDraft.description}
+                onChange={(e) => setEditDraft((d) => (d ? { ...d, description: e.target.value } : d))}
+              />
+              <div className="flex gap-2">
                 <input
-                  className="input-field w-20 py-1 text-xs"
-                  type="number"
-                  min="0"
-                  value={stockEdits[product.id] ?? stock.quantityOnHand}
-                  onChange={(e) => setStockEdits((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                  className="input-field"
+                  placeholder="Category (optional)"
+                  value={editDraft.categoryName}
+                  onChange={(e) => setEditDraft((d) => (d ? { ...d, categoryName: e.target.value } : d))}
                 />
-                <button
-                  type="button"
-                  className="btn-secondary px-3 py-1 text-xs"
-                  onClick={() => handleSaveStock(product, stock.branchId)}
-                >
-                  Save
+                <input
+                  className="input-field"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Price"
+                  value={editDraft.price}
+                  onChange={(e) => setEditDraft((d) => (d ? { ...d, price: e.target.value } : d))}
+                  required
+                />
+              </div>
+              <input
+                className="input-field"
+                placeholder="Image URL (optional)"
+                value={editDraft.imageUrl}
+                onChange={(e) => setEditDraft((d) => (d ? { ...d, imageUrl: e.target.value } : d))}
+              />
+              <label className="flex items-center gap-2 text-xs text-ink-muted">
+                <input
+                  type="checkbox"
+                  checked={editDraft.active}
+                  onChange={(e) => setEditDraft((d) => (d ? { ...d, active: e.target.checked } : d))}
+                />
+                Active (visible to customers)
+              </label>
+              <div className="flex gap-2">
+                <button type="submit" className="btn-primary flex-1" disabled={editSubmitting}>
+                  {editSubmitting ? 'Saving…' : 'Save changes'}
+                </button>
+                <button type="button" className="btn-secondary flex-1" onClick={cancelEditProduct}>
+                  Cancel
                 </button>
               </div>
-            ))}
-          </div>
-        ))}
+            </form>
+          ) : (
+            <div key={product.id} className="card flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-ink">{product.name}</p>
+                  <p className="text-xs text-ink-faint">
+                    {product.categoryName ?? 'Uncategorized'} · ₹{product.price.toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEditProduct(product)}
+                    className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-ink"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleActive(product)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      product.active ? 'bg-brand-50 text-brand-700' : 'bg-danger-50 text-danger-500'
+                    }`}
+                  >
+                    {product.active ? 'Active' : 'Inactive'}
+                  </button>
+                </div>
+              </div>
+
+              {product.branchStock.map((stock) => (
+                <div key={stock.branchId} className="flex items-center gap-2 text-xs">
+                  <span className="text-ink-muted">{stock.branchName} stock:</span>
+                  <input
+                    className="input-field w-20 py-1 text-xs"
+                    type="number"
+                    min="0"
+                    value={stockEdits[product.id] ?? stock.quantityOnHand}
+                    onChange={(e) => setStockEdits((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary px-3 py-1 text-xs"
+                    onClick={() => handleSaveStock(product, stock.branchId)}
+                  >
+                    Save
+                  </button>
+                </div>
+              ))}
+            </div>
+          ),
+        )}
       </section>
     </div>
   )
