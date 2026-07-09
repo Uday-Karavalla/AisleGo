@@ -12,6 +12,8 @@ import com.aislego.catalogue.routing.GeoPoint;
 import com.aislego.catalogue.routing.RouteEstimate;
 import com.aislego.catalogue.routing.RoutingService;
 import com.aislego.common.exception.NotFoundException;
+import com.aislego.reviews.repository.RatingSummaryView;
+import com.aislego.reviews.service.ReviewService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -46,15 +49,18 @@ public class StoreDiscoveryService {
     private final BranchRepository branchRepository;
     private final SupermarketRepository supermarketRepository;
     private final RoutingService routingService;
+    private final ReviewService reviewService;
     private final Clock clock;
 
     public StoreDiscoveryService(BranchRepository branchRepository,
                                   SupermarketRepository supermarketRepository,
                                   RoutingService routingService,
+                                  ReviewService reviewService,
                                   Clock clock) {
         this.branchRepository = branchRepository;
         this.supermarketRepository = supermarketRepository;
         this.routingService = routingService;
+        this.reviewService = reviewService;
         this.clock = clock;
     }
 
@@ -84,6 +90,9 @@ public class StoreDiscoveryService {
 
         LocalTime now = LocalTime.now(clock);
 
+        List<Long> candidateSupermarketIds = candidates.stream().map(NearbyBranchView::getSupermarketId).distinct().toList();
+        Map<Long, RatingSummaryView> ratingSummaries = reviewService.summarize(candidateSupermarketIds);
+
         List<NearbyBranchResponse> results = new ArrayList<>();
         for (int i = 0; i < candidates.size(); i++) {
             RouteEstimate estimate = estimates.get(i);
@@ -91,7 +100,8 @@ public class StoreDiscoveryService {
                 continue;
             }
             NearbyBranchView candidate = candidates.get(i);
-            results.add(NearbyBranchResponse.from(candidate, estimate, isOpen(candidate, now)));
+            results.add(NearbyBranchResponse.from(candidate, estimate, isOpen(candidate, now),
+                    ratingSummaries.get(candidate.getSupermarketId())));
         }
 
         results.sort(Comparator.comparingDouble(NearbyBranchResponse::distanceKm));
@@ -138,6 +148,7 @@ public class StoreDiscoveryService {
                 .map(BranchResponse::from)
                 .toList();
 
-        return SupermarketResponse.from(supermarket, branches);
+        RatingSummaryView ratingSummary = reviewService.summarize(List.of(supermarketId)).get(supermarketId);
+        return SupermarketResponse.from(supermarket, branches, ratingSummary);
     }
 }

@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { storesApi } from '../api/stores'
 import type { Store } from '../api/stores'
 import { productsApi } from '../api/products'
 import type { Product } from '../api/products'
+import { reviewsApi } from '../api/reviews'
+import type { MyReviewStatus, StoreReviews } from '../api/reviews'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { ProductCard } from '../components/ProductCard'
 import { EmptyState } from '../components/EmptyState'
 import { SearchIcon, StarIcon, ClockIcon } from '../components/icons'
@@ -16,9 +20,17 @@ type Status = 'loading' | 'success' | 'error'
 export default function Storefront() {
   const { storeId } = useParams<{ storeId: string }>()
   const { cart, addItem, updateQuantity, removeItem } = useCart()
+  const { user } = useAuth()
 
   const [store, setStore] = useState<Store | null>(null)
   const [storeStatus, setStoreStatus] = useState<Status>('loading')
+
+  const [storeReviews, setStoreReviews] = useState<StoreReviews | null>(null)
+  const [myReviewStatus, setMyReviewStatus] = useState<MyReviewStatus | null>(null)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [reviewDraft, setReviewDraft] = useState({ rating: 5, comment: '' })
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -44,7 +56,60 @@ export default function Storefront() {
       .categories(storeId)
       .then(setCategories)
       .catch(() => {})
+    reviewsApi
+      .list(storeId)
+      .then(setStoreReviews)
+      .catch(() => {})
   }, [storeId])
+
+  useEffect(() => {
+    if (!storeId || !user?.roles.includes('CUSTOMER')) {
+      setMyReviewStatus(null)
+      return
+    }
+    reviewsApi
+      .mine(storeId)
+      .then(setMyReviewStatus)
+      .catch(() => {})
+  }, [storeId, user])
+
+  function openReviewForm() {
+    setReviewMessage(null)
+    setReviewDraft({
+      rating: myReviewStatus?.myReview?.rating ?? 5,
+      comment: myReviewStatus?.myReview?.comment ?? '',
+    })
+    setShowReviewForm(true)
+  }
+
+  async function handleSubmitReview(event: FormEvent) {
+    event.preventDefault()
+    if (!storeId) return
+    setReviewSubmitting(true)
+    setReviewMessage(null)
+    try {
+      const review = await reviewsApi.submit(storeId, {
+        rating: reviewDraft.rating,
+        comment: reviewDraft.comment || undefined,
+      })
+      setMyReviewStatus((prev) => (prev ? { ...prev, myReview: review } : prev))
+      setStoreReviews((prev) => {
+        if (!prev) return prev
+        const withoutMine = prev.reviews.filter((r) => r.id !== review.id)
+        return {
+          reviews: [review, ...withoutMine],
+          reviewCount: withoutMine.length === prev.reviews.length ? prev.reviewCount + 1 : prev.reviewCount,
+          averageRating: prev.averageRating,
+        }
+      })
+      setShowReviewForm(false)
+      if (storeId) reviewsApi.list(storeId).then(setStoreReviews).catch(() => {})
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : 'Could not submit your review.')
+    } finally {
+      setReviewSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 300)
@@ -189,6 +254,80 @@ export default function Storefront() {
           Load more products
         </button>
       )}
+
+      <section className="mt-4 flex flex-col gap-3 border-t border-black/5 pt-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-ink">
+            Reviews{storeReviews && storeReviews.reviewCount > 0 ? ` (${storeReviews.reviewCount})` : ''}
+          </h2>
+          {myReviewStatus?.eligible && !showReviewForm && (
+            <button type="button" onClick={openReviewForm} className="text-xs font-semibold text-brand-700">
+              {myReviewStatus.myReview ? 'Edit your review' : 'Write a review'}
+            </button>
+          )}
+        </div>
+
+        {user?.roles.includes('CUSTOMER') && myReviewStatus && !myReviewStatus.eligible && (
+          <p className="text-xs text-ink-faint">You can review this store once an order from it has been delivered.</p>
+        )}
+
+        {showReviewForm && (
+          <form onSubmit={handleSubmitReview} className="card flex flex-col gap-2">
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setReviewDraft((d) => ({ ...d, rating: value }))}
+                  aria-label={`${value} star${value === 1 ? '' : 's'}`}
+                  className="p-0.5"
+                >
+                  <StarIcon
+                    className={`h-6 w-6 ${value <= reviewDraft.rating ? 'text-warning-500' : 'text-black/15'}`}
+                  />
+                </button>
+              ))}
+            </div>
+            <textarea
+              className="input-field"
+              rows={3}
+              placeholder="Share your experience with this store (optional)"
+              value={reviewDraft.comment}
+              onChange={(e) => setReviewDraft((d) => ({ ...d, comment: e.target.value }))}
+            />
+            {reviewMessage && (
+              <p role="alert" className="text-sm text-danger-500">
+                {reviewMessage}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary flex-1" disabled={reviewSubmitting}>
+                {reviewSubmitting ? 'Saving…' : 'Submit review'}
+              </button>
+              <button type="button" className="btn-secondary flex-1" onClick={() => setShowReviewForm(false)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {storeReviews && storeReviews.reviews.length === 0 && (
+          <p className="text-sm text-ink-muted">No reviews yet — be the first to shop here and leave one.</p>
+        )}
+
+        {storeReviews?.reviews.map((review) => (
+          <div key={review.id} className="card flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-ink">{review.reviewerName}</span>
+              <span className="inline-flex items-center gap-1 text-xs text-ink-muted">
+                <StarIcon className="h-3.5 w-3.5 text-warning-500" />
+                {review.rating}
+              </span>
+            </div>
+            {review.comment && <p className="text-sm text-ink-muted">{review.comment}</p>}
+          </div>
+        ))}
+      </section>
     </div>
   )
 }

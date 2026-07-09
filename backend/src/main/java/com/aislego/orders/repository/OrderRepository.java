@@ -27,4 +27,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findBySupermarketIdAndStatusOrderByCreatedAtDesc(Long supermarketId, OrderStatus status);
 
     Optional<Order> findByIdAndSupermarketId(Long id, Long supermarketId);
+
+    /** Verified-purchase gate for {@code ReviewService} - only a customer with a delivered
+     *  order from this supermarket may review it. */
+    boolean existsByUserIdAndSupermarketIdAndStatus(Long userId, Long supermarketId, OrderStatus status);
 }

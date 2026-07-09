@@ -5,10 +5,7 @@ export interface Store {
   id: string
   name: string
   logoUrl?: string
-  /**
-   * 0-5. Optional: the backend has no reviews/ratings schema yet (future
-   * catalogue-richness phase), so this is only ever populated by fixtures today.
-   */
+  /** 0-5 average from `GET /api/stores/{id}/reviews`'s aggregate; absent when the store has no reviews yet. */
   rating?: number
   ratingCount?: number
   distanceKm: number
@@ -33,6 +30,8 @@ interface NearbyBranch {
   distanceKm: number
   etaMinutes: number
   isOpen: boolean
+  rating: number | null
+  ratingCount: number
 }
 
 interface GeocodeResponse {
@@ -52,12 +51,20 @@ function combineAddress(addressLine: string | null, city: string | null): string
 
 function fromNearbyBranch(branch: NearbyBranch): Store {
   return {
+    // Deliberately branchId, not supermarketId: Checkout.tsx reads cart.storeId straight back
+    // as the branchId to order from. This does mean the storefront route (which fetches
+    // products/categories/reviews by *supermarket*) is keyed by a branch id that only matches
+    // its supermarket id by coincidence in today's seed data - see the note on Storefront.tsx's
+    // `supermarketId` resolution for the workaround, and the flagged pre-existing bug this
+    // surfaced (product browsing already had this same mismatch before reviews existed).
     id: String(branch.branchId),
     name: branch.branchName,
     address: combineAddress(branch.addressLine, branch.city),
     distanceKm: branch.distanceKm,
     etaMinutes: branch.etaMinutes,
     isOpen: branch.isOpen,
+    rating: branch.rating ?? undefined,
+    ratingCount: branch.ratingCount,
   }
 }
 

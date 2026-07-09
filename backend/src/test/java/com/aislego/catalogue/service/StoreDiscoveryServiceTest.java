@@ -6,6 +6,8 @@ import com.aislego.catalogue.repository.NearbyBranchView;
 import com.aislego.catalogue.repository.SupermarketRepository;
 import com.aislego.catalogue.routing.RouteEstimate;
 import com.aislego.catalogue.routing.RoutingService;
+import com.aislego.reviews.service.ReviewService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -16,11 +18,13 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,15 +36,22 @@ class StoreDiscoveryServiceTest {
     private SupermarketRepository supermarketRepository;
     @Mock
     private RoutingService routingService;
+    @Mock
+    private ReviewService reviewService;
 
     private static final double ORIGIN_LAT = 12.9716;
     private static final double ORIGIN_LNG = 77.6412;
     private static final ZoneId ZONE = ZoneId.of("Asia/Kolkata");
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(reviewService.summarize(any())).thenReturn(Map.of());
+    }
+
     private StoreDiscoveryService serviceWithClockAt(String isoLocalTime) {
         Instant fixedInstant = OffsetDateTime.parse("2026-07-03T" + isoLocalTime + ":00+05:30").toInstant();
         Clock clock = Clock.fixed(fixedInstant, ZONE);
-        return new StoreDiscoveryService(branchRepository, supermarketRepository, routingService, clock);
+        return new StoreDiscoveryService(branchRepository, supermarketRepository, routingService, reviewService, clock);
     }
 
     private TestBranchView candidate(long id, String openingTime, String closingTime) {
