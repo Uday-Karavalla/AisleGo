@@ -15,6 +15,28 @@
   }
 }
 
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* The ticker list is rendered twice back-to-back (see Home.tsx) - sliding exactly one
+       copy's width out of view leaves the second copy in the same starting position, so the
+       loop has no visible seam. */
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 22s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
 @layer components {
   /* Fresh-produce colour wash behind the whole app: soft green/orange/red glows - the colours
      of leafy veg, carrots and tomatoes - instead of a single brand-teal tint, plus a faint tiled
