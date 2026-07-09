@@ -16,6 +16,20 @@
 }
 
 @layer components {
+  /* Soft brand-teal wash behind the whole app - two gentle glows (top-left, top-right) fading
+     into the app's usual neutral surface colour, fixed so it reads as one continuous backdrop
+     rather than repeating or hard-cutting as the page scrolls/grows taller than the viewport. */
+  .app-background {
+    background-color: theme('colors.surface.muted');
+    background-image:
+      radial-gradient(1100px 700px at 12% -8%, theme('colors.brand.100') 0%, transparent 60%),
+      radial-gradient(900px 650px at 100% 0%, theme('colors.brand.50') 0%, transparent 55%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+}
+
+@layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3.5 text-base font-semibold text-white shadow-card transition active:scale-[0.98] active:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-faint disabled:active:scale-100;
   }

@@ -129,7 +129,7 @@ export function Layout() {
   const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
-    <div className="flex min-h-full w-full flex-col bg-surface-muted">
+    <div className="app-background flex min-h-full w-full flex-col">
       <header className="sticky top-0 z-30 border-b border-black/5 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-8">
           <Link to="/" className="flex shrink-0 items-center gap-2">
