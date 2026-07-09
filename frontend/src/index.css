@@ -16,18 +16,19 @@
 }
 
 @layer components {
-  /* Brand-teal wash behind the whole app - three overlapping glows, plus a faint tiled pattern
-     of grocery silhouettes (apple, carrot, shopping bag, leaf) drawn in the same thin-stroke
-     line-art style as icons.tsx, at low opacity so it reads as texture, not clutter. All fixed
-     so it reads as one continuous backdrop rather than repeating/hard-cutting as the page
-     scrolls or grows taller than the viewport. */
+  /* Fresh-produce colour wash behind the whole app: soft green/orange/red glows - the colours
+     of leafy veg, carrots and tomatoes - instead of a single brand-teal tint, plus a faint tiled
+     pattern of grocery silhouettes (apple, carrot, shopping bag, leaf) drawn in the same
+     thin-stroke line-art style as icons.tsx, in a quiet neutral ink tone so it doesn't add a
+     fourth competing colour. All fixed so it reads as one continuous backdrop rather than
+     repeating/hard-cutting as the page scrolls or grows taller than the viewport. */
   .app-background {
     background-color: theme('colors.surface.muted');
     background-image:
-      radial-gradient(1300px 900px at 0% -15%, theme('colors.brand.300') 0%, transparent 55%),
-      radial-gradient(1100px 800px at 100% -10%, theme('colors.brand.200') 0%, transparent 50%),
-      radial-gradient(1400px 700px at 50% 115%, theme('colors.brand.100') 0%, transparent 50%),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%230e7490' stroke-opacity='0.34' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='42' cy='58' r='14'/%3E%3Cpath d='M42 44v-7'/%3E%3Cpath d='M42 40q6-5 11 0'/%3E%3Cpath d='M150 28l9 38q-4 5-9 0q-5 5-9 0z'/%3E%3Cpath d='M150 28l-6-8M150 28l6-8M150 28v-10'/%3E%3Cpath d='M44 146h30l4 36h-38z'/%3E%3Cpath d='M51 146a8 10 0 0 1 16 0'/%3E%3Cpath d='M168 150q24 6 24 28q-24-2-24-28z'/%3E%3Cpath d='M168 150q11 13 13 26'/%3E%3C/g%3E%3C/svg%3E");
+      radial-gradient(1200px 850px at 4% -10%, #86efac 0%, transparent 52%),
+      radial-gradient(1100px 800px at 100% -8%, #fdba74 0%, transparent 50%),
+      radial-gradient(1300px 750px at 50% 118%, #fca5a5 0%, transparent 48%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%2310241c' stroke-opacity='0.14' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='42' cy='58' r='14'/%3E%3Cpath d='M42 44v-7'/%3E%3Cpath d='M42 40q6-5 11 0'/%3E%3Cpath d='M150 28l9 38q-4 5-9 0q-5 5-9 0z'/%3E%3Cpath d='M150 28l-6-8M150 28l6-8M150 28v-10'/%3E%3Cpath d='M44 146h30l4 36h-38z'/%3E%3Cpath d='M51 146a8 10 0 0 1 16 0'/%3E%3Cpath d='M168 150q24 6 24 28q-24-2-24-28z'/%3E%3Cpath d='M168 150q11 13 13 26'/%3E%3C/g%3E%3C/svg%3E");
     background-position: 0 0, 0 0, 0 0, 0 0;
     background-repeat: no-repeat, no-repeat, no-repeat, repeat;
     background-size: auto, auto, auto, 340px 340px;
