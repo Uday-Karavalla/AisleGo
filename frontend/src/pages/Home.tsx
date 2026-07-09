@@ -6,6 +6,64 @@ import { useUserLocation } from '../context/LocationContext'
 import { storesApi } from '../api/stores'
 import { MapPinIcon, SearchIcon, StarIcon } from '../components/icons'
 
+/** Flat white silhouette illustrations for the hero's tile grid - stand-ins for product
+ *  photography (no image asset pipeline in this app), drawn large enough to read clearly
+ *  rather than a small default-emoji glyph. */
+function VeggiesArt({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <path
+        d="M50 30q7 0 9 8l7 42q1 8-7 10-4 1-9-3-5 4-9 3-8-2-7-10l7-42q2-8 9-8Z"
+        fill="white"
+        fillOpacity="0.92"
+      />
+      <path
+        d="M50 30V16M50 30l-11-9M50 30l11-9M50 30l-16 3M50 30l16 3"
+        stroke="white"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.85"
+      />
+    </svg>
+  )
+}
+
+function DairyArt({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <path
+        d="M41 14h18v11l10 15v46q0 6-6 6H37q-6 0-6-6V40l10-15Z"
+        fill="white"
+        fillOpacity="0.92"
+      />
+      <rect x="41" y="8" width="18" height="8" rx="2.5" fill="white" opacity="0.92" />
+      <rect x="33" y="58" width="34" height="7" rx="1.5" fill="white" opacity="0.4" />
+    </svg>
+  )
+}
+
+function FruitArt({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <path
+        d="M50 34q16-8 27 3 11 11 4 30-7 19-24 21-2 .3-7 0-5 .3-7 0-17-2-24-21-7-19 4-30 11-11 27-3Z"
+        fill="white"
+        fillOpacity="0.92"
+      />
+      <path d="M50 34V21" stroke="white" strokeWidth="4.5" strokeLinecap="round" opacity="0.85" />
+      <path
+        d="M50 24q6-6 13-3"
+        stroke="white"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.85"
+      />
+    </svg>
+  )
+}
+
 const TICKER_CATEGORIES = [
   { emoji: '🍌', label: 'Bananas' },
   { emoji: '🧃', label: 'Juices' },
@@ -130,17 +188,17 @@ export default function Home() {
 
           <div className="hidden lg:block lg:w-[46%]">
             <div className="grid h-[380px] grid-cols-2 grid-rows-2 gap-4">
-              <div className="row-span-2 flex flex-col justify-end rounded-3xl bg-gradient-to-br from-brand-200 to-emerald-400 p-4 shadow-pop">
-                <span className="text-4xl">🥗</span>
-                <p className="mt-2 text-sm font-bold text-brand-900">Fresh veggies daily</p>
+              <div className="row-span-2 flex flex-col justify-between rounded-3xl bg-gradient-to-br from-brand-200 to-emerald-400 p-4 shadow-pop">
+                <VeggiesArt className="h-24 w-24 self-end" />
+                <p className="text-sm font-bold text-brand-900">Fresh veggies daily</p>
               </div>
-              <div className="flex flex-col justify-end rounded-3xl bg-gradient-to-br from-sky-100 to-sky-300 p-4 shadow-pop">
-                <span className="text-3xl">🥛</span>
-                <p className="mt-1 text-xs font-bold text-brand-900">Dairy &amp; more</p>
+              <div className="flex flex-col justify-between rounded-3xl bg-gradient-to-br from-sky-100 to-sky-300 p-4 shadow-pop">
+                <DairyArt className="h-16 w-16 self-end" />
+                <p className="text-xs font-bold text-brand-900">Dairy &amp; more</p>
               </div>
-              <div className="flex flex-col justify-end rounded-3xl bg-gradient-to-br from-orange-200 to-orange-400 p-4 shadow-pop">
-                <span className="text-3xl">🍊</span>
-                <p className="mt-1 text-xs font-bold text-brand-900">Fresh fruit</p>
+              <div className="flex flex-col justify-between rounded-3xl bg-gradient-to-br from-orange-200 to-orange-400 p-4 shadow-pop">
+                <FruitArt className="h-16 w-16 self-end" />
+                <p className="text-xs font-bold text-brand-900">Fresh fruit</p>
               </div>
             </div>
           </div>
