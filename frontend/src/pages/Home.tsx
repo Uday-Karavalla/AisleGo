@@ -46,7 +46,8 @@ export default function Home() {
   }
 
   return (
-    <div className="page-narrow flex flex-col gap-8 px-5 pb-10 pt-8">
+    <div className="page-shell justify-center px-5 pb-10 pt-8">
+      <div className="page-narrow flex flex-col gap-8">
       <div className="text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-600 text-2xl font-black text-white shadow-card">
           A
@@ -119,6 +120,7 @@ export default function Home() {
             </button>
           </form>
         )}
+      </div>
       </div>
     </div>
   )

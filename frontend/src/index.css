@@ -42,10 +42,17 @@
     @apply mx-auto w-full max-w-7xl;
   }
 
-  /* Single-focus forms (auth, checkout, verification, legal) stay a comfortable reading width
-     even on a wide screen - stretching a login form edge-to-edge would look broken, not "full
-     screen." Reuses the app's original 480px phone-app width, now opt-in per page. */
+  /* Full-width outer section for single-focus forms (auth, checkout, verification, legal) -
+     fills the screen like every other page instead of leaving it pinned in a corner, but
+     centers its content rather than stretching inputs/buttons edge-to-edge, which would just
+     look broken at 1400px wide. Pair with `.page-narrow` on an inner wrapper. */
+  .page-shell {
+    @apply flex w-full flex-1 flex-col items-center;
+  }
+
+  /* Inner content column for a `.page-shell` - a comfortable reading/form width, reusing the
+     app's original 480px phone-app measure now that it's opt-in per page. */
   .page-narrow {
-    @apply mx-auto w-full max-w-app;
+    @apply w-full max-w-app;
   }
 }

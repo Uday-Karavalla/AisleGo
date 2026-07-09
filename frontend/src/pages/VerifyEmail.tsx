@@ -15,12 +15,14 @@ export default function VerifyEmail() {
 
   if (user?.emailVerified) {
     return (
-      <div className="page-narrow flex flex-col items-center gap-3 px-5 py-16 text-center">
-        <CheckIcon className="h-10 w-10 text-brand-600" />
-        <h1 className="text-lg font-bold text-ink">Your email is verified</h1>
-        <button type="button" className="btn-primary" onClick={() => navigate('/')}>
-          Continue
-        </button>
+      <div className="page-shell justify-center px-5 py-16">
+        <div className="page-narrow flex flex-col items-center gap-3 text-center">
+          <CheckIcon className="h-10 w-10 text-brand-600" />
+          <h1 className="text-lg font-bold text-ink">Your email is verified</h1>
+          <button type="button" className="btn-primary" onClick={() => navigate('/')}>
+            Continue
+          </button>
+        </div>
       </div>
     )
   }
@@ -56,51 +58,53 @@ export default function VerifyEmail() {
   }
 
   return (
-    <div className="page-narrow flex flex-col gap-6 px-5 py-8">
-      <div>
-        <h1 className="text-xl font-extrabold text-ink">Verify your email</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          We sent a 6-digit code to <strong className="text-ink">{user?.email}</strong>. Enter it below to verify
-          your account.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="card flex flex-col gap-3">
-        <label htmlFor="verification-code" className="text-sm font-semibold text-ink">
-          Verification code
-        </label>
-        <input
-          id="verification-code"
-          className="input-field text-center text-lg tracking-[0.3em]"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          inputMode="numeric"
-          maxLength={6}
-          placeholder="000000"
-          autoComplete="one-time-code"
-        />
-
-        {errorMessage && (
-          <p role="alert" className="text-sm text-danger-500">
-            {errorMessage}
+    <div className="page-shell justify-center px-5 py-8">
+      <div className="page-narrow flex flex-col gap-6">
+        <div>
+          <h1 className="text-xl font-extrabold text-ink">Verify your email</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            We sent a 6-digit code to <strong className="text-ink">{user?.email}</strong>. Enter it below to verify
+            your account.
           </p>
-        )}
+        </div>
 
-        <button type="submit" className="btn-primary" disabled={submitting || !code.trim()}>
-          {submitting ? 'Verifying…' : 'Verify email'}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="card flex flex-col gap-3">
+          <label htmlFor="verification-code" className="text-sm font-semibold text-ink">
+            Verification code
+          </label>
+          <input
+            id="verification-code"
+            className="input-field text-center text-lg tracking-[0.3em]"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="000000"
+            autoComplete="one-time-code"
+          />
 
-      <div className="text-center text-sm text-ink-muted">
-        Didn&apos;t get a code?{' '}
-        <button
-          type="button"
-          className="font-semibold text-brand-700 disabled:text-ink-faint"
-          onClick={handleResend}
-          disabled={resendState === 'sending'}
-        >
-          {resendState === 'sent' ? 'Code resent — check your inbox' : 'Resend code'}
-        </button>
+          {errorMessage && (
+            <p role="alert" className="text-sm text-danger-500">
+              {errorMessage}
+            </p>
+          )}
+
+          <button type="submit" className="btn-primary" disabled={submitting || !code.trim()}>
+            {submitting ? 'Verifying…' : 'Verify email'}
+          </button>
+        </form>
+
+        <div className="text-center text-sm text-ink-muted">
+          Didn&apos;t get a code?{' '}
+          <button
+            type="button"
+            className="font-semibold text-brand-700 disabled:text-ink-faint"
+            onClick={handleResend}
+            disabled={resendState === 'sending'}
+          >
+            {resendState === 'sent' ? 'Code resent — check your inbox' : 'Resend code'}
+          </button>
+        </div>
       </div>
     </div>
   )

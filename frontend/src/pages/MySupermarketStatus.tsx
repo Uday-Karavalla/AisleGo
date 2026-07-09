@@ -49,7 +49,8 @@ export default function MySupermarketStatus() {
   }
 
   return (
-    <div className="page-narrow flex flex-col gap-6 px-5 py-8">
+    <div className="page-shell justify-center px-5 py-8">
+    <div className="page-narrow flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-extrabold text-ink">{supermarket.name}</h1>
         <span
@@ -84,6 +85,7 @@ export default function MySupermarketStatus() {
           View orders
         </Link>
       )}
+    </div>
     </div>
   )
 }

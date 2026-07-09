@@ -44,7 +44,8 @@ export default function RegisterSupermarketOwner() {
   }
 
   return (
-    <div className="page-narrow flex flex-col gap-6 px-5 py-8">
+    <div className="page-shell justify-center px-5 py-8">
+    <div className="page-narrow flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Register your supermarket</h1>
         <p className="mt-1 text-sm text-ink-muted">
@@ -139,6 +140,7 @@ export default function RegisterSupermarketOwner() {
         </Link>
         .
       </p>
+    </div>
     </div>
   )
 }
