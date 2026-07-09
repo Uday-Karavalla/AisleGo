@@ -16,14 +16,16 @@
 }
 
 @layer components {
-  /* Soft brand-teal wash behind the whole app - two gentle glows (top-left, top-right) fading
-     into the app's usual neutral surface colour, fixed so it reads as one continuous backdrop
-     rather than repeating or hard-cutting as the page scrolls/grows taller than the viewport. */
+  /* Brand-teal wash behind the whole app - three overlapping glows fading into the app's usual
+     neutral surface colour, fixed so it reads as one continuous backdrop rather than repeating
+     or hard-cutting as the page scrolls/grows taller than the viewport. Deliberately bold enough
+     to be unmistakable at a glance, not just a barely-there tint. */
   .app-background {
     background-color: theme('colors.surface.muted');
     background-image:
-      radial-gradient(1100px 700px at 12% -8%, theme('colors.brand.100') 0%, transparent 60%),
-      radial-gradient(900px 650px at 100% 0%, theme('colors.brand.50') 0%, transparent 55%);
+      radial-gradient(1300px 900px at 0% -15%, theme('colors.brand.300') 0%, transparent 55%),
+      radial-gradient(1100px 800px at 100% -10%, theme('colors.brand.200') 0%, transparent 50%),
+      radial-gradient(1400px 700px at 50% 115%, theme('colors.brand.100') 0%, transparent 50%);
     background-attachment: fixed;
     background-repeat: no-repeat;
   }
