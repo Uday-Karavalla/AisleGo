@@ -1,14 +1,17 @@
 package com.aislego.catalogue.service;
 
 import com.aislego.catalogue.domain.Branch;
+import com.aislego.catalogue.domain.Product;
 import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.domain.SupermarketStatus;
 import com.aislego.catalogue.dto.BranchDetailResponse;
 import com.aislego.catalogue.dto.BranchResponse;
+import com.aislego.catalogue.dto.CategoryProductResponse;
 import com.aislego.catalogue.dto.NearbyBranchResponse;
 import com.aislego.catalogue.dto.SupermarketResponse;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.NearbyBranchView;
+import com.aislego.catalogue.repository.ProductRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
 import com.aislego.catalogue.routing.GeoPoint;
 import com.aislego.catalogue.routing.RouteEstimate;
@@ -16,6 +19,8 @@ import com.aislego.catalogue.routing.RoutingService;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.reviews.repository.RatingSummaryView;
 import com.aislego.reviews.service.ReviewService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +29,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,17 +56,20 @@ public class StoreDiscoveryService {
 
     private final BranchRepository branchRepository;
     private final SupermarketRepository supermarketRepository;
+    private final ProductRepository productRepository;
     private final RoutingService routingService;
     private final ReviewService reviewService;
     private final Clock clock;
 
     public StoreDiscoveryService(BranchRepository branchRepository,
                                   SupermarketRepository supermarketRepository,
+                                  ProductRepository productRepository,
                                   RoutingService routingService,
                                   ReviewService reviewService,
                                   Clock clock) {
         this.branchRepository = branchRepository;
         this.supermarketRepository = supermarketRepository;
+        this.productRepository = productRepository;
         this.routingService = routingService;
         this.reviewService = reviewService;
         this.clock = clock;
@@ -185,5 +194,38 @@ public class StoreDiscoveryService {
                 ratingSummary != null ? ratingSummary.getAverageRating() : null,
                 ratingSummary != null ? ratingSummary.getReviewCount() : 0
         );
+    }
+
+    /**
+     * Cross-store category browse: one category's products mixed across every supermarket
+     * near the customer, each tagged with which store it's from and the nearest branch to
+     * fulfil it from - unlike {@code ProductCatalogueService.browse}, which is always scoped
+     * to one already-chosen supermarket. Reuses {@link #findNearby} for the "which stores are
+     * near this customer" half, then queries products across those stores' ids.
+     */
+    public Page<CategoryProductResponse> browseCategoryNearby(String categoryKeyword, double lat, double lng,
+                                                                double radiusKm, Pageable pageable) {
+        List<NearbyBranchResponse> nearbyBranches = findNearby(lat, lng, radiusKm);
+        if (nearbyBranches.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // A chain can have multiple nearby branches of the *same* supermarket - keep only the
+        // nearest one per supermarket, since a product only needs one branch pinned for
+        // "add to cart"/checkout purposes.
+        Map<Long, NearbyBranchResponse> nearestBranchBySupermarket = new LinkedHashMap<>();
+        for (NearbyBranchResponse branch : nearbyBranches) {
+            nearestBranchBySupermarket.merge(branch.supermarketId(), branch,
+                    (existing, candidate) -> candidate.distanceKm() < existing.distanceKm() ? candidate : existing);
+        }
+
+        List<Long> supermarketIds = List.copyOf(nearestBranchBySupermarket.keySet());
+        Page<Product> products = productRepository.searchByCategoryKeywordAcrossSupermarkets(
+                supermarketIds, categoryKeyword.trim(), pageable);
+
+        return products.map(product -> {
+            NearbyBranchResponse branch = nearestBranchBySupermarket.get(product.getSupermarket().getId());
+            return CategoryProductResponse.from(product, branch.branchId(), branch.distanceKm());
+        });
     }
 }

@@ -2,11 +2,16 @@ package com.aislego.catalogue.web;
 
 import com.aislego.catalogue.dto.BranchDetailResponse;
 import com.aislego.catalogue.dto.CategoriesResponse;
+import com.aislego.catalogue.dto.CategoryProductResponse;
 import com.aislego.catalogue.dto.NearbyBranchResponse;
 import com.aislego.catalogue.dto.SupermarketResponse;
 import com.aislego.catalogue.service.ProductCatalogueService;
 import com.aislego.catalogue.service.StoreDiscoveryService;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -55,5 +60,19 @@ public class StoreController {
     @GetMapping("/{supermarketId}/categories")
     public CategoriesResponse categories(@PathVariable Long supermarketId) {
         return new CategoriesResponse(productCatalogueService.listCategories(supermarketId));
+    }
+
+    /**
+     * Cross-store category browse: one category's products mixed across every nearby
+     * supermarket, e.g. the home page's "Fresh veggies daily" / "Dairy &amp; more" / "Fresh
+     * fruit" tiles. See {@code StoreDiscoveryService#browseCategoryNearby}.
+     */
+    @GetMapping("/category-products")
+    public Page<CategoryProductResponse> categoryProducts(@RequestParam @NotBlank String category,
+                                                            @RequestParam @NotNull Double lat,
+                                                            @RequestParam @NotNull Double lng,
+                                                            @RequestParam(defaultValue = "10") double radiusKm,
+                                                            @PageableDefault(size = 20) Pageable pageable) {
+        return storeDiscoveryService.browseCategoryNearby(category, lat, lng, radiusKm, pageable);
     }
 }

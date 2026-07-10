@@ -1,23 +1,31 @@
 package com.aislego.catalogue.service;
 
 import com.aislego.catalogue.domain.Branch;
+import com.aislego.catalogue.domain.Category;
+import com.aislego.catalogue.domain.Product;
 import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.domain.SupermarketStatus;
 import com.aislego.catalogue.dto.BranchDetailResponse;
+import com.aislego.catalogue.dto.CategoryProductResponse;
 import com.aislego.catalogue.dto.NearbyBranchResponse;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.NearbyBranchView;
+import com.aislego.catalogue.repository.ProductRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
 import com.aislego.catalogue.routing.RouteEstimate;
 import com.aislego.catalogue.routing.RoutingService;
 import com.aislego.common.exception.NotFoundException;
+import com.aislego.common.money.Money;
 import com.aislego.reviews.service.ReviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -42,6 +50,8 @@ class StoreDiscoveryServiceTest {
     @Mock
     private SupermarketRepository supermarketRepository;
     @Mock
+    private ProductRepository productRepository;
+    @Mock
     private RoutingService routingService;
     @Mock
     private ReviewService reviewService;
@@ -58,7 +68,8 @@ class StoreDiscoveryServiceTest {
     private StoreDiscoveryService serviceWithClockAt(String isoLocalTime) {
         Instant fixedInstant = OffsetDateTime.parse("2026-07-03T" + isoLocalTime + ":00+05:30").toInstant();
         Clock clock = Clock.fixed(fixedInstant, ZONE);
-        return new StoreDiscoveryService(branchRepository, supermarketRepository, routingService, reviewService, clock);
+        return new StoreDiscoveryService(branchRepository, supermarketRepository, productRepository, routingService,
+                reviewService, clock);
     }
 
     private TestBranchView candidate(long id, String openingTime, String closingTime) {
@@ -226,6 +237,47 @@ class StoreDiscoveryServiceTest {
         when(branchRepository.findById(5L)).thenReturn(Optional.of(branch));
 
         assertThatThrownBy(() -> service.getBranchDetail(5L)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void browseCategoryNearbyPinsEachProductToItsNearestNearbyBranch() {
+        StoreDiscoveryService service = serviceWithClockAt("12:00");
+
+        TestBranchView nearBranchOfSupermarketSeven = new TestBranchView(
+                10L, "Corner Grocer Main", "Addr", "Bengaluru", 12.95, 77.63, 7L, "Corner Grocer",
+                "09:00", "21:00");
+        TestBranchView otherBranchOfSupermarketNine = new TestBranchView(
+                20L, "ValueMart Annex", "Addr", "Bengaluru", 12.95, 77.63, 9L, "ValueMart",
+                "09:00", "21:00");
+        when(branchRepository.findNearbyBranchCandidates(anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(nearBranchOfSupermarketSeven, otherBranchOfSupermarketNine));
+        when(routingService.estimateRoutes(any(), any())).thenReturn(List.of(
+                new RouteEstimate(1.0, 3.0), new RouteEstimate(2.0, 6.0)));
+
+        Supermarket supermarketSeven = new Supermarket();
+        supermarketSeven.setId(7L);
+        supermarketSeven.setName("Corner Grocer");
+        Product carrot = new Product();
+        carrot.setId(100L);
+        carrot.setName("Carrot (1 kg)");
+        carrot.setSku("CG-CARROT");
+        carrot.setPrice(Money.of(new BigDecimal("40.00"), "INR"));
+        carrot.setSupermarket(supermarketSeven);
+        Category vegetables = new Category();
+        vegetables.setName("Fruits & Vegetables");
+        carrot.setCategory(vegetables);
+
+        when(productRepository.searchByCategoryKeywordAcrossSupermarkets(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(carrot), PageRequest.of(0, 20), 1));
+
+        var result = service.browseCategoryNearby("vegetable", ORIGIN_LAT, ORIGIN_LNG, 10.0, PageRequest.of(0, 20));
+
+        assertThat(result.getContent()).hasSize(1);
+        CategoryProductResponse response = result.getContent().get(0);
+        assertThat(response.supermarketId()).isEqualTo(7L);
+        assertThat(response.branchId()).isEqualTo(10L);
+        assertThat(response.distanceKm()).isEqualTo(1.0);
+        assertThat(response.categoryName()).isEqualTo("Fruits & Vegetables");
     }
 
     private record TestBranchView(Long id, String name, String addressLine, String city, Double latitude,

@@ -8,6 +8,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import Home from './pages/Home'
 import StoreDiscovery from './pages/StoreDiscovery'
 import Storefront from './pages/Storefront'
+import CategoryBrowse from './pages/CategoryBrowse'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import Addresses from './pages/Addresses'
@@ -37,6 +38,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/stores" element={<StoreDiscovery />} />
                 <Route path="/stores/:storeId" element={<Storefront />} />
+                <Route path="/category/:category" element={<CategoryBrowse />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route
                   path="/checkout"

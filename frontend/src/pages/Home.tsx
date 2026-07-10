@@ -8,15 +8,36 @@ import { MapPinIcon, SearchIcon, StarIcon } from '../components/icons'
 
 /** One photo tile in the hero's grid - a real product photo (see public/images/) with a dark
  *  gradient scrim at the bottom so the label stays readable regardless of the photo's own
- *  brightness/colour. */
-function PhotoTile({ src, label, className }: { src: string; label: string; className?: string }) {
-  return (
-    <div className={`relative overflow-hidden rounded-3xl shadow-pop ${className ?? ''}`}>
+ *  brightness/colour. Clickable once a location is known, straight into that category's
+ *  cross-store browse page (see CategoryBrowse.tsx) - before that, there's nowhere useful to
+ *  send it, so it stays decorative. */
+function PhotoTile({
+  src,
+  label,
+  className,
+  onClick,
+}: {
+  src: string
+  label: string
+  className?: string
+  onClick?: () => void
+}) {
+  const content = (
+    <>
       <img src={src} alt="" className="h-full w-full object-cover" />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
         <p className="text-sm font-bold text-white">{label}</p>
       </div>
-    </div>
+    </>
+  )
+  const sharedClassName = `relative block w-full overflow-hidden rounded-3xl text-left shadow-pop transition active:scale-[0.98] ${className ?? ''}`
+
+  return onClick ? (
+    <button type="button" onClick={onClick} className={sharedClassName}>
+      {content}
+    </button>
+  ) : (
+    <div className={sharedClassName}>{content}</div>
   )
 }
 
@@ -144,9 +165,22 @@ export default function Home() {
 
           <div className="hidden lg:block lg:w-[46%]">
             <div className="grid h-[380px] grid-cols-2 grid-rows-2 gap-4">
-              <PhotoTile src="/images/vegetables.jpg" label="Fresh veggies daily" className="row-span-2" />
-              <PhotoTile src="/images/milk.jpg" label="Dairy & more" />
-              <PhotoTile src="/images/fruit.jpg" label="Fresh fruit" />
+              <PhotoTile
+                src="/images/vegetables.jpg"
+                label="Fresh veggies daily"
+                className="row-span-2"
+                onClick={location ? () => navigate('/category/vegetable') : undefined}
+              />
+              <PhotoTile
+                src="/images/milk.jpg"
+                label="Dairy & more"
+                onClick={location ? () => navigate('/category/dairy') : undefined}
+              />
+              <PhotoTile
+                src="/images/fruit.jpg"
+                label="Fresh fruit"
+                onClick={location ? () => navigate('/category/fruit') : undefined}
+              />
             </div>
           </div>
         </div>

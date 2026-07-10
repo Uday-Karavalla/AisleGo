@@ -50,4 +50,32 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     /** Owner-facing listing - includes inactive products, unlike the customer-facing search above. */
     List<Product> findBySupermarketIdOrderByNameAsc(Long supermarketId);
+
+    /**
+     * Cross-store category browse: every active product in a set of (nearby, already-filtered)
+     * supermarkets whose category name contains the given keyword. A keyword match rather than
+     * an exact one, since categories are a shared-but-organic reference table (see
+     * {@code OwnerCatalogService#resolveCategory}) - there's no fixed "Vegetables"/"Fruit"/
+     * "Dairy" taxonomy, e.g. the seeded category is "Fruits &amp; Vegetables", so a "vegetable"
+     * keyword needs to match it by substring, not equality.
+     */
+    @Query(value = """
+            SELECT p.* FROM products p
+            JOIN categories c ON c.id = p.category_id
+            WHERE p.supermarket_id IN (:supermarketIds)
+              AND p.active = true
+              AND c.name ILIKE CONCAT('%', :categoryKeyword, '%')
+            ORDER BY p.name ASC
+            """,
+            countQuery = """
+            SELECT count(*) FROM products p
+            JOIN categories c ON c.id = p.category_id
+            WHERE p.supermarket_id IN (:supermarketIds)
+              AND p.active = true
+              AND c.name ILIKE CONCAT('%', :categoryKeyword, '%')
+            """,
+            nativeQuery = true)
+    Page<Product> searchByCategoryKeywordAcrossSupermarkets(@Param("supermarketIds") List<Long> supermarketIds,
+                                                             @Param("categoryKeyword") String categoryKeyword,
+                                                             Pageable pageable);
 }

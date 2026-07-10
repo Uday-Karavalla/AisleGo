@@ -94,6 +94,64 @@ function fromRawProduct(raw: RawProduct, storeId: string): Product {
   }
 }
 
+/** One item in a cross-store category browse result (see `GET /api/stores/category-products`) -
+ *  unlike {@link Product}, tagged with which store it's from and the nearest branch to fulfil
+ *  it from, since results here mix products across every nearby supermarket. */
+export interface CategoryProduct {
+  id: string
+  name: string
+  description?: string
+  imageUrl?: string
+  price: number
+  currency: string
+  categoryName: string
+  supermarketId: string
+  supermarketName: string
+  branchId: string
+  distanceKm: number
+}
+
+export interface CategoryProductListParams {
+  /** Matched by substring against the shared category name (e.g. "vegetable" matches the
+   *  seeded "Fruits & Vegetables" category) - there's no fixed category taxonomy, see
+   *  ProductRepository#searchByCategoryKeywordAcrossSupermarkets. */
+  category: string
+  lat: number
+  lng: number
+  radiusKm?: number
+  page?: number
+  pageSize?: number
+}
+
+export interface CategoryProductListResponse {
+  products: CategoryProduct[]
+  page: number
+  totalPages: number
+  totalCount: number
+}
+
+interface RawCategoryProduct {
+  id: number
+  name: string
+  description: string | null
+  sku: string
+  price: number
+  currency: string
+  categoryName: string | null
+  imageUrl: string | null
+  supermarketId: number
+  supermarketName: string
+  branchId: number
+  distanceKm: number
+}
+
+interface RawCategoryProductPage {
+  content: RawCategoryProduct[]
+  number: number
+  totalPages: number
+  totalElements: number
+}
+
 export const productsApi = {
   async list(params: ProductListParams): Promise<ProductListResponse> {
     const pageSize = params.pageSize ?? 20
@@ -101,6 +159,7 @@ export const productsApi = {
       page: String((params.page ?? 1) - 1),
       size: String(pageSize),
       ...(params.search ? { search: params.search } : {}),
+      ...(params.category ? { category: params.category } : {}),
     })
     try {
       const response = await api.get<RawProductPage>(`/stores/${params.storeId}/products?${query.toString()}`)
@@ -131,6 +190,36 @@ export const productsApi = {
         return Array.from(categories)
       }
       throw error
+    }
+  },
+
+  async byCategory(params: CategoryProductListParams): Promise<CategoryProductListResponse> {
+    const query = new URLSearchParams({
+      category: params.category,
+      lat: String(params.lat),
+      lng: String(params.lng),
+      radiusKm: String(params.radiusKm ?? 10),
+      page: String((params.page ?? 1) - 1),
+      size: String(params.pageSize ?? 20),
+    })
+    const response = await api.get<RawCategoryProductPage>(`/stores/category-products?${query.toString()}`)
+    return {
+      products: response.content.map((raw) => ({
+        id: String(raw.id),
+        name: raw.name,
+        description: raw.description ?? undefined,
+        imageUrl: raw.imageUrl ?? undefined,
+        price: raw.price,
+        currency: raw.currency,
+        categoryName: raw.categoryName ?? '',
+        supermarketId: String(raw.supermarketId),
+        supermarketName: raw.supermarketName,
+        branchId: String(raw.branchId),
+        distanceKm: raw.distanceKm,
+      })),
+      page: response.number + 1,
+      totalPages: response.totalPages,
+      totalCount: response.totalElements,
     }
   },
 }
