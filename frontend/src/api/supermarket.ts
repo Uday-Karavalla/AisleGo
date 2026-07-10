@@ -20,6 +20,7 @@ export interface OwnerBranch {
   longitude: number
   openingTime: string | null
   closingTime: string | null
+  active: boolean
 }
 
 export interface NewOwnerBranch {
@@ -30,6 +31,10 @@ export interface NewOwnerBranch {
   longitude: number
   openingTime: string
   closingTime: string
+}
+
+export interface UpdateOwnerBranch extends NewOwnerBranch {
+  active: boolean
 }
 
 export interface BranchStock {
@@ -102,6 +107,9 @@ export const supermarketOwnerApi = {
 
   listBranches: () => api.get<OwnerBranch[]>('/supermarkets/mine/branches'),
   createBranch: (branch: NewOwnerBranch) => api.post<OwnerBranch>('/supermarkets/mine/branches', branch),
+  updateBranch: (branchId: number, branch: UpdateOwnerBranch) =>
+    api.patch<OwnerBranch>(`/supermarkets/mine/branches/${branchId}`, branch),
+  deleteBranch: (branchId: number) => api.delete<void>(`/supermarkets/mine/branches/${branchId}`),
 
   listProducts: () => api.get<OwnerProduct[]>('/supermarkets/mine/products'),
   createProduct: (product: NewOwnerProduct) => api.post<OwnerProduct>('/supermarkets/mine/products', product),
@@ -109,6 +117,7 @@ export const supermarketOwnerApi = {
     api.patch<OwnerProduct>(`/supermarkets/mine/products/${productId}`, product),
   updateInventory: (productId: number, branchId: number, quantityOnHand: number) =>
     api.patch<OwnerProduct>(`/supermarkets/mine/products/${productId}/inventory`, { branchId, quantityOnHand }),
+  deleteProduct: (productId: number) => api.delete<void>(`/supermarkets/mine/products/${productId}`),
 
   listOrders: (status?: OrderStatus) =>
     api.get<OwnerOrder[]>(`/supermarkets/mine/orders${status ? `?status=${status}` : ''}`),

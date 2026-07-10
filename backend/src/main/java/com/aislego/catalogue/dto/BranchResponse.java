@@ -10,7 +10,8 @@ public record BranchResponse(
         double latitude,
         double longitude,
         String openingTime,
-        String closingTime
+        String closingTime,
+        boolean active
 ) {
     public static BranchResponse from(Branch branch) {
         return new BranchResponse(
@@ -21,7 +22,8 @@ public record BranchResponse(
                 branch.getLatitude(),
                 branch.getLongitude(),
                 branch.getOpeningTime(),
-                branch.getClosingTime()
+                branch.getClosingTime(),
+                branch.isActive()
         );
     }
 }

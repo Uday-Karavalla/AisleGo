@@ -5,6 +5,7 @@ import com.aislego.catalogue.dto.CreateBranchRequest;
 import com.aislego.catalogue.dto.CreateProductRequest;
 import com.aislego.catalogue.dto.MySupermarketResponse;
 import com.aislego.catalogue.dto.OwnerProductResponse;
+import com.aislego.catalogue.dto.UpdateBranchRequest;
 import com.aislego.catalogue.dto.UpdateInventoryRequest;
 import com.aislego.catalogue.dto.UpdateProductRequest;
 import com.aislego.catalogue.service.OwnerCatalogService;
@@ -19,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,6 +72,19 @@ public class SupermarketOwnerController {
         return ownerCatalogService.createBranch(principal.userId(), request);
     }
 
+    @PatchMapping("/mine/branches/{branchId}")
+    public BranchResponse updateBranch(@AuthenticationPrincipal AuthenticatedUser principal,
+                                        @PathVariable Long branchId,
+                                        @Valid @RequestBody UpdateBranchRequest request) {
+        return ownerCatalogService.updateBranch(principal.userId(), branchId, request);
+    }
+
+    @DeleteMapping("/mine/branches/{branchId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteBranch(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable Long branchId) {
+        ownerCatalogService.deleteBranch(principal.userId(), branchId);
+    }
+
     @GetMapping("/mine/products")
     public List<OwnerProductResponse> listProducts(@AuthenticationPrincipal AuthenticatedUser principal) {
         return ownerCatalogService.listProducts(principal.userId());
@@ -94,6 +109,12 @@ public class SupermarketOwnerController {
                                                  @PathVariable Long productId,
                                                  @Valid @RequestBody UpdateInventoryRequest request) {
         return ownerCatalogService.updateInventory(principal.userId(), productId, request);
+    }
+
+    @DeleteMapping("/mine/products/{productId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProduct(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable Long productId) {
+        ownerCatalogService.deleteProduct(principal.userId(), productId);
     }
 
     /** Omit {@code status} for every order at this store; pass it to filter to one stage. */

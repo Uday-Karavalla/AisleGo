@@ -9,17 +9,21 @@ import com.aislego.catalogue.dto.BranchStockResponse;
 import com.aislego.catalogue.dto.CreateBranchRequest;
 import com.aislego.catalogue.dto.CreateProductRequest;
 import com.aislego.catalogue.dto.OwnerProductResponse;
+import com.aislego.catalogue.dto.UpdateBranchRequest;
 import com.aislego.catalogue.dto.UpdateInventoryRequest;
 import com.aislego.catalogue.dto.UpdateProductRequest;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.CategoryRepository;
 import com.aislego.catalogue.repository.ProductRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.ForbiddenException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
 import com.aislego.inventory.domain.Inventory;
 import com.aislego.inventory.repository.InventoryRepository;
+import com.aislego.orders.repository.CartItemRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,15 +50,17 @@ public class OwnerCatalogService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final InventoryRepository inventoryRepository;
+    private final CartItemRepository cartItemRepository;
 
     public OwnerCatalogService(SupermarketRepository supermarketRepository, BranchRepository branchRepository,
                                 ProductRepository productRepository, CategoryRepository categoryRepository,
-                                InventoryRepository inventoryRepository) {
+                                InventoryRepository inventoryRepository, CartItemRepository cartItemRepository) {
         this.supermarketRepository = supermarketRepository;
         this.branchRepository = branchRepository;
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.inventoryRepository = inventoryRepository;
+        this.cartItemRepository = cartItemRepository;
     }
 
     @Transactional(readOnly = true)
@@ -81,6 +87,43 @@ public class OwnerCatalogService {
         branch.setActive(true);
 
         return BranchResponse.from(branchRepository.save(branch));
+    }
+
+    public BranchResponse updateBranch(Long ownerId, Long branchId, UpdateBranchRequest request) {
+        Supermarket supermarket = getOwnedSupermarket(ownerId);
+        Branch branch = findOwnedBranch(supermarket, branchId);
+
+        branch.setName(request.name());
+        branch.setAddressLine(request.addressLine());
+        branch.setCity(request.city());
+        branch.setLatitude(request.latitude());
+        branch.setLongitude(request.longitude());
+        branch.setOpeningTime(request.openingTime());
+        branch.setClosingTime(request.closingTime());
+        branch.setActive(request.active());
+
+        return BranchResponse.from(branchRepository.save(branch));
+    }
+
+    /**
+     * A branch with any order history can't be hard-deleted (its rows are the FK target of
+     * {@code orders.branch_id}) - rather than pre-checking for that, this just attempts the
+     * delete and translates the resulting FK violation into a clear "deactivate instead"
+     * message, since a database constraint violation is exactly the right signal here and
+     * doesn't need duplicating as a separate existence check.
+     */
+    public void deleteBranch(Long ownerId, Long branchId) {
+        Supermarket supermarket = getOwnedSupermarket(ownerId);
+        Branch branch = findOwnedBranch(supermarket, branchId);
+
+        inventoryRepository.deleteAll(inventoryRepository.findByBranchId(branchId));
+        try {
+            branchRepository.delete(branch);
+            branchRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            throw new ConflictException("BRANCH_HAS_ORDER_HISTORY",
+                    "This branch has past orders and can't be deleted - mark it inactive instead");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -129,6 +172,28 @@ public class OwnerCatalogService {
         product = productRepository.save(product);
 
         return OwnerProductResponse.from(product, branchStockFor(product.getId()));
+    }
+
+    /**
+     * A product that's ever been ordered can't be hard-deleted (it's the FK target of
+     * {@code order_items.product_id}, which snapshots the product for historical order
+     * records) - same "attempt it, translate the FK violation" approach as
+     * {@link #deleteBranch}. An in-progress cart referencing this product has no such
+     * historical value, so those rows are just dropped rather than blocking the delete.
+     */
+    public void deleteProduct(Long ownerId, Long productId) {
+        Supermarket supermarket = getOwnedSupermarket(ownerId);
+        Product product = findOwnedProduct(supermarket, productId);
+
+        cartItemRepository.deleteByProductId(productId);
+        inventoryRepository.deleteAll(inventoryRepository.findByProductId(productId));
+        try {
+            productRepository.delete(product);
+            productRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            throw new ConflictException("PRODUCT_HAS_ORDER_HISTORY",
+                    "This product has past orders and can't be deleted - mark it inactive instead");
+        }
     }
 
     public OwnerProductResponse updateInventory(Long ownerId, Long productId, UpdateInventoryRequest request) {

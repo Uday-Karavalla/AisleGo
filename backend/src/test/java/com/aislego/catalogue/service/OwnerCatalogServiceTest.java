@@ -7,18 +7,21 @@ import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.dto.CreateBranchRequest;
 import com.aislego.catalogue.dto.CreateProductRequest;
 import com.aislego.catalogue.dto.OwnerProductResponse;
+import com.aislego.catalogue.dto.UpdateBranchRequest;
 import com.aislego.catalogue.dto.UpdateInventoryRequest;
 import com.aislego.catalogue.dto.UpdateProductRequest;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.CategoryRepository;
 import com.aislego.catalogue.repository.ProductRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.ForbiddenException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
 import com.aislego.identity.domain.User;
 import com.aislego.inventory.domain.Inventory;
 import com.aislego.inventory.repository.InventoryRepository;
+import com.aislego.orders.repository.CartItemRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,6 +38,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,6 +61,8 @@ class OwnerCatalogServiceTest {
     private CategoryRepository categoryRepository;
     @Mock
     private InventoryRepository inventoryRepository;
+    @Mock
+    private CartItemRepository cartItemRepository;
 
     @InjectMocks
     private OwnerCatalogService service;
@@ -105,6 +112,92 @@ class OwnerCatalogServiceTest {
         verify(branchRepository).save(captor.capture());
         assertThat(captor.getValue().getSupermarket()).isEqualTo(mySupermarket);
         assertThat(response.name()).isEqualTo("Main Branch");
+    }
+
+    @Test
+    void updateBranchRejectsABranchBelongingToAnotherSupermarket() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Branch foreignBranch = buildBranch(1L, OTHER_SUPERMARKET_ID);
+        when(branchRepository.findById(1L)).thenReturn(Optional.of(foreignBranch));
+
+        UpdateBranchRequest request = new UpdateBranchRequest(
+                "Renamed", "Addr", "City", 12.9, 77.6, "09:00", "21:00", true);
+
+        assertThatThrownBy(() -> service.updateBranch(OWNER_ID, 1L, request))
+                .isInstanceOf(NotFoundException.class);
+        verify(branchRepository, never()).save(any());
+    }
+
+    @Test
+    void updateBranchSavesTheChangesToTheCallersOwnBranch() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Branch myBranch = buildBranch(1L, MY_SUPERMARKET_ID);
+        when(branchRepository.findById(1L)).thenReturn(Optional.of(myBranch));
+        when(branchRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateBranchRequest request = new UpdateBranchRequest(
+                "Renamed Branch", "New Addr", "New City", 13.0, 78.0, "08:00", "22:00", false);
+
+        var response = service.updateBranch(OWNER_ID, 1L, request);
+
+        assertThat(response.name()).isEqualTo("Renamed Branch");
+        assertThat(response.active()).isFalse();
+        assertThat(myBranch.getAddressLine()).isEqualTo("New Addr");
+    }
+
+    @Test
+    void deleteBranchRemovesItsInventoryThenDeletesIt() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Branch myBranch = buildBranch(1L, MY_SUPERMARKET_ID);
+        when(branchRepository.findById(1L)).thenReturn(Optional.of(myBranch));
+        Inventory row = new Inventory();
+        when(inventoryRepository.findByBranchId(1L)).thenReturn(List.of(row));
+
+        service.deleteBranch(OWNER_ID, 1L);
+
+        verify(inventoryRepository).deleteAll(List.of(row));
+        verify(branchRepository).delete(myBranch);
+    }
+
+    @Test
+    void deleteBranchTranslatesAForeignKeyViolationIntoAClearConflictMessage() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Branch myBranch = buildBranch(1L, MY_SUPERMARKET_ID);
+        when(branchRepository.findById(1L)).thenReturn(Optional.of(myBranch));
+        when(inventoryRepository.findByBranchId(1L)).thenReturn(List.of());
+        doThrow(new DataIntegrityViolationException("FK violation")).when(branchRepository).flush();
+
+        assertThatThrownBy(() -> service.deleteBranch(OWNER_ID, 1L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("inactive");
+    }
+
+    @Test
+    void deleteProductClearsCartsAndInventoryThenDeletesIt() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Product myProduct = buildProduct(7L, MY_SUPERMARKET_ID);
+        when(productRepository.findById(7L)).thenReturn(Optional.of(myProduct));
+        Inventory row = new Inventory();
+        when(inventoryRepository.findByProductId(7L)).thenReturn(List.of(row));
+
+        service.deleteProduct(OWNER_ID, 7L);
+
+        verify(cartItemRepository).deleteByProductId(7L);
+        verify(inventoryRepository).deleteAll(List.of(row));
+        verify(productRepository).delete(myProduct);
+    }
+
+    @Test
+    void deleteProductTranslatesAForeignKeyViolationIntoAClearConflictMessage() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Product myProduct = buildProduct(7L, MY_SUPERMARKET_ID);
+        when(productRepository.findById(7L)).thenReturn(Optional.of(myProduct));
+        when(inventoryRepository.findByProductId(7L)).thenReturn(List.of());
+        doThrow(new DataIntegrityViolationException("FK violation")).when(productRepository).flush();
+
+        assertThatThrownBy(() -> service.deleteProduct(OWNER_ID, 7L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("inactive");
     }
 
     @Test
