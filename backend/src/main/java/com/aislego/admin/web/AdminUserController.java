@@ -1,6 +1,7 @@
 package com.aislego.admin.web;
 
 import com.aislego.identity.dto.AdminResetPasswordRequest;
+import com.aislego.identity.dto.AdminVerifyEmailRequest;
 import com.aislego.identity.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,13 @@ public class AdminUserController {
     @PostMapping("/reset-password")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody AdminResetPasswordRequest request) {
         authService.adminResetPassword(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Admin-only manual verification - see {@link AuthService#adminVerifyEmail}. */
+    @PostMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody AdminVerifyEmailRequest request) {
+        authService.adminVerifyEmail(request);
         return ResponseEntity.noContent().build();
     }
 }

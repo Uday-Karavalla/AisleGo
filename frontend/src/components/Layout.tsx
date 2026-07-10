@@ -78,6 +78,11 @@ function AccountMenu() {
             Admin — all orders
           </Link>
         )}
+        {user.roles.includes('ADMIN') && (
+          <Link to="/admin/users" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            Admin — manage users
+          </Link>
+        )}
         {user.roles.includes('SUPERMARKET_OWNER') && (
           <Link to="/my-store" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             My store

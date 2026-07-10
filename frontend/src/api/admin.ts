@@ -72,4 +72,12 @@ export const adminApi = {
       totalCount: response.totalElements,
     }
   },
+
+  /** Manually marks a user's email verified - a stopgap for real customers who can't receive
+   *  the actual verification email yet (Resend's free tier only delivers to the account owner's
+   *  own address until a custom domain is verified). */
+  verifyUserEmail: (email: string) => api.post<void>('/admin/users/verify-email', { email }),
+
+  resetUserPassword: (email: string, newPassword: string) =>
+    api.post<void>('/admin/users/reset-password', { email, newPassword }),
 }

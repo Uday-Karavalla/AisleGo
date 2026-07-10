@@ -14,6 +14,7 @@ import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.AdminResetPasswordRequest;
+import com.aislego.identity.dto.AdminVerifyEmailRequest;
 import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
@@ -310,6 +311,29 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.adminResetPassword(
                 new AdminResetPasswordRequest("nobody@example.com", "brand-new-password")))
+                .isInstanceOf(NotFoundException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void adminVerifyEmailMarksTheTargetUserVerifiedAndClearsTheirPendingCode() {
+        User user = buildUser();
+        user.setEmailVerified(false);
+        user.setVerificationCode("123456");
+        when(userRepository.findByEmail("admin@aislego.com")).thenReturn(Optional.of(user));
+
+        authService.adminVerifyEmail(new AdminVerifyEmailRequest("admin@aislego.com"));
+
+        assertThat(user.isEmailVerified()).isTrue();
+        assertThat(user.getVerificationCode()).isNull();
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void adminVerifyEmailThrowsNotFoundForAnUnknownEmail() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.adminVerifyEmail(new AdminVerifyEmailRequest("nobody@example.com")))
                 .isInstanceOf(NotFoundException.class);
         verify(userRepository, never()).save(any());
     }

@@ -13,6 +13,7 @@ import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.AdminResetPasswordRequest;
+import com.aislego.identity.dto.AdminVerifyEmailRequest;
 import com.aislego.identity.dto.AuthResponse;
 import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.MeResponse;
@@ -135,6 +136,23 @@ public class AuthService {
         User user = userRepository.findByEmail(request.email().toLowerCase())
                 .orElseThrow(() -> new NotFoundException("No account found with this email"));
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+    }
+
+    /**
+     * Admin-only manual verification: marks a user's email verified without them ever entering
+     * a code. A stopgap for real customers/owners who can't receive the actual verification
+     * email yet (Resend's free tier only delivers to the account this Resend account was
+     * signed up with, until a custom domain is verified) - lets the business keep operating for
+     * everyone else in the meantime rather than leaving every non-owner account stuck unverified.
+     */
+    @Transactional
+    public void adminVerifyEmail(AdminVerifyEmailRequest request) {
+        User user = userRepository.findByEmail(request.email().toLowerCase())
+                .orElseThrow(() -> new NotFoundException("No account found with this email"));
+        user.setEmailVerified(true);
+        user.setVerificationCode(null);
+        user.setVerificationCodeExpiresAt(null);
         userRepository.save(user);
     }
 
