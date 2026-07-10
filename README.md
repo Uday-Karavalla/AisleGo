@@ -129,7 +129,11 @@ To try real Twilio SMS:
 Supermarkets are no longer limited to Flyway seed data — a real self-registration + verification flow exists:
 
 - **Supermarket owner self-registration** — a new owner registers at `/register-store` (or directly via `POST /api/auth/register-supermarket-owner`), which creates their user account and their supermarket in one step. The new store starts in `PENDING` status and is invisible to customer discovery (both the nearby-stores list and direct single-store lookup) until an admin approves it.
-- **Seeded default admin account** — a dev-only admin user is seeded via Flyway (`admin@aislego.com` / `AisleGoAdmin!23`) so the verification workflow is demoable with zero setup, the same spirit as the mock payment gateway and Haversine routing above. **This is not a production credential** — it exists purely for local/demo use.
+- **Admin account** — there is no seeded admin credential (a previous demo account was removed after its password ended up in this file, which is exactly the kind of thing that shouldn't ship in a README that's also true for the production database - see V10 migration). To test the admin flow locally, create your own: register a normal account, then promote it directly in your local Postgres:
+  ```bash
+  docker compose exec postgres psql -U aislego -d aislego -c \
+    "INSERT INTO user_roles (user_id, role) SELECT id, 'ADMIN' FROM users WHERE email = 'your-local-test-email@example.com';"
+  ```
 - **Admin review** — the admin logs in at `/login`, reviews pending stores at `/admin`, and approves or rejects each one (rejection requires a reason). Approving a store flips it to `VERIFIED` and it immediately becomes visible in customer discovery; rejecting sets `REJECTED` with the reason attached.
 - **Owner status check** — the owner can check their application status at `/my-store` at any time, seeing `PENDING`, `VERIFIED`, or `REJECTED` (with the rejection reason, if any).
 
@@ -150,7 +154,7 @@ Delivery-partner verification is out of scope for now — it's deferred until th
 
 1. Register a new store at `/register-store` (or `POST /api/auth/register-supermarket-owner`) — you're logged in immediately and land on `/my-store` showing `PENDING`.
 2. Confirm the new store does **not** appear in `GET /api/stores/nearby` for its own coordinates, or in Store Discovery in the browser.
-3. Log in as the seeded admin (`admin@aislego.com` / `AisleGoAdmin!23`) at `/login`, open `/admin`, and approve the new store.
+3. Log in as an admin (see "Admin account" above) at `/login`, open `/admin`, and approve the new store.
 4. Reload `/my-store` (as the owner) or `GET /api/stores/nearby` and confirm the store now shows `VERIFIED` and is visible in discovery.
 
 ## Tests

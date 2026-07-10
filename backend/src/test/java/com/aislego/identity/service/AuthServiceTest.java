@@ -7,11 +7,14 @@ import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.exception.UnauthorizedException;
+import com.aislego.common.exception.TooManyAttemptsException;
 import com.aislego.common.security.JwtService;
+import com.aislego.common.security.LoginRateLimiter;
 import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.AdminResetPasswordRequest;
+import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
 import com.aislego.identity.dto.UpdateAccountRequest;
@@ -30,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +51,8 @@ class AuthServiceTest {
     private JwtService jwtService;
     @Mock
     private EmailService emailService;
+    @Mock
+    private LoginRateLimiter loginRateLimiter;
 
     private AuthService authService;
 
@@ -56,7 +62,64 @@ class AuthServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, supermarketRepository, passwordEncoder, jwtService, emailService);
+        authService = new AuthService(userRepository, supermarketRepository, passwordEncoder, jwtService, emailService,
+                loginRateLimiter);
+    }
+
+    @Test
+    void loginRejectsRightAwayWhenTheRateLimiterHasAlreadyLockedThisEmail() {
+        doThrow(new TooManyAttemptsException("Too many failed login attempts. Please try again in a few minutes."))
+                .when(loginRateLimiter).checkAllowed("owner@example.com");
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("owner@example.com", "whatever")))
+                .isInstanceOf(TooManyAttemptsException.class);
+
+        verify(userRepository, never()).findByEmail(any());
+    }
+
+    @Test
+    void loginRecordsAFailureWhenTheEmailDoesNotExist() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("nobody@example.com", "whatever")))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(loginRateLimiter).recordFailure("nobody@example.com");
+    }
+
+    @Test
+    void loginRecordsAFailureWhenThePasswordIsWrong() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("owner@example.com");
+        user.setPasswordHash("hashed");
+        user.setEnabled(true);
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong-password", "hashed")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("owner@example.com", "wrong-password")))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(loginRateLimiter).recordFailure("owner@example.com");
+    }
+
+    @Test
+    void loginClearsTheRateLimiterOnSuccess() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("owner@example.com");
+        user.setPasswordHash("hashed");
+        user.setEnabled(true);
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correct-password", "hashed")).thenReturn(true);
+        when(jwtService.generateAccessToken(anyLong(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(anyLong(), any(), any())).thenReturn("refresh-token");
+        when(jwtService.getAccessTokenTtlMillis()).thenReturn(900_000L);
+
+        authService.login(new LoginRequest("owner@example.com", "correct-password"));
+
+        verify(loginRateLimiter).recordSuccess("owner@example.com");
+        verify(loginRateLimiter, never()).recordFailure(any());
     }
 
     @Test

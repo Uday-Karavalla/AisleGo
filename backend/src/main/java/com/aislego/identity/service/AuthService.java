@@ -8,6 +8,7 @@ import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
+import com.aislego.common.security.LoginRateLimiter;
 import com.aislego.email.EmailService;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
@@ -46,14 +47,17 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
+    private final LoginRateLimiter loginRateLimiter;
 
     public AuthService(UserRepository userRepository, SupermarketRepository supermarketRepository,
-                        PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService) {
+                        PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService,
+                        LoginRateLimiter loginRateLimiter) {
         this.userRepository = userRepository;
         this.supermarketRepository = supermarketRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @Transactional
@@ -136,16 +140,24 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email().toLowerCase())
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+        String email = request.email().toLowerCase();
+        loginRateLimiter.checkAllowed(email);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    loginRateLimiter.recordFailure(email);
+                    return new UnauthorizedException("Invalid email or password");
+                });
 
         if (!user.isEnabled()) {
             throw new UnauthorizedException("This account has been disabled");
         }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            loginRateLimiter.recordFailure(email);
             throw new UnauthorizedException("Invalid email or password");
         }
 
+        loginRateLimiter.recordSuccess(email);
         return issueTokens(user);
     }
 

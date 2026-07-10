@@ -80,6 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setAuthToken(null)
     setUser(null)
+    // Cart/location/addresses hold real personal data (home address, GPS coordinates) - on a
+    // shared/public device, leaving them in localStorage after logout would let the next
+    // person using the browser read the previous user's data straight out of storage.
+    localStorage.removeItem('aislego.cart')
+    localStorage.removeItem('aislego.location')
+    localStorage.removeItem('aislego.addresses')
   }, [])
 
   const verifyEmail = useCallback(async (code: string) => {
