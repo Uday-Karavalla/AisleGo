@@ -153,6 +153,11 @@ interface RawCategoryProductPage {
 }
 
 export const productsApi = {
+  async get(storeId: string, productId: string): Promise<Product> {
+    const raw = await api.get<RawProduct>(`/stores/${storeId}/products/${productId}`)
+    return fromRawProduct(raw, storeId)
+  },
+
   async list(params: ProductListParams): Promise<ProductListResponse> {
     const pageSize = params.pageSize ?? 20
     const query = new URLSearchParams({

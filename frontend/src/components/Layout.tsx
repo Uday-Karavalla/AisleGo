@@ -2,7 +2,7 @@ import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useUserLocation } from '../context/LocationContext'
 import { useAuth } from '../context/AuthContext'
-import { HomeIcon, CartIcon, ClipboardIcon, MapPinIcon, UserIcon } from './icons'
+import { HomeIcon, CartIcon, ClipboardIcon, MapPinIcon, UserIcon, BellIcon } from './icons'
 import { PwaInstallPrompt } from './PwaInstallPrompt'
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
@@ -74,6 +74,11 @@ function AccountMenu() {
           </Link>
         )}
         {user.roles.includes('ADMIN') && (
+          <Link to="/admin/growth" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            Admin - growth dashboard
+          </Link>
+        )}
+        {user.roles.includes('ADMIN') && (
           <Link to="/admin/orders" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             Admin — all orders
           </Link>
@@ -106,9 +111,17 @@ function AccountMenu() {
             My orders
           </Link>
         )}
+        <Link to="/notifications" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+          Notifications
+        </Link>
         {user.roles.includes('CUSTOMER') && (
           <Link to="/addresses" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             My addresses
+          </Link>
+        )}
+        {user.roles.includes('CUSTOMER') && (
+          <Link to="/referrals" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            Invite friends &amp; earn ₹100
           </Link>
         )}
         <button
@@ -182,6 +195,9 @@ export function Layout() {
                 <span className="truncate">{location.label}</span>
               </Link>
             )}
+            <Link to="/notifications" className="rounded-full p-2 text-ink-muted hover:bg-black/5" aria-label="Notifications">
+              <BellIcon className="h-5 w-5" />
+            </Link>
             <AccountMenu />
           </div>
         </div>

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ordersApi } from '../api/orders'
 import type { Order } from '../api/orders'
 import { ORDER_STAGE_LABELS } from '../api/orders'
 import { EmptyState } from '../components/EmptyState'
 import { ClipboardIcon } from '../components/icons'
+import { useCart } from '../context/CartContext'
 
 type Status = 'loading' | 'success' | 'error'
 
 export default function Orders() {
+  const navigate = useNavigate()
+  const { replaceWithOrder } = useCart()
   const [orders, setOrders] = useState<Order[]>([])
   const [status, setStatus] = useState<Status>('loading')
+  const [reorderingId, setReorderingId] = useState<number | null>(null)
 
   function load() {
     setStatus('loading')
@@ -26,6 +30,19 @@ export default function Orders() {
   useEffect(() => {
     load()
   }, [])
+
+  async function reorder(orderId: number) {
+    setReorderingId(orderId)
+    try {
+      const order = orders.find((candidate) => candidate.id === orderId)
+      if (!order) return
+      const serverCart = await ordersApi.reorder(orderId)
+      replaceWithOrder(order, serverCart)
+      navigate('/cart')
+    } finally {
+      setReorderingId(null)
+    }
+  }
 
   return (
     <div className="page-wide flex flex-col gap-4 px-5 py-6">
@@ -68,7 +85,8 @@ export default function Orders() {
       {status === 'success' && orders.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {orders.map((order) => (
-            <Link key={order.id} to={`/orders/${order.id}`} className="card flex flex-col gap-2 active:scale-[0.99]">
+            <div key={order.id} className="card flex flex-col gap-2">
+              <Link to={`/orders/${order.id}`} className="flex flex-col gap-2 active:scale-[0.99]">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-ink">Order #{order.id}</h2>
                 <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-ink-muted">
@@ -91,7 +109,11 @@ export default function Orders() {
                   <p className="font-bold text-ink">{order.currency} {order.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
-            </Link>
+              </Link>
+              <button type="button" className="btn-secondary py-2 text-xs" onClick={() => reorder(order.id)} disabled={reorderingId === order.id}>
+                {reorderingId === order.id ? 'Adding items…' : 'Order these items again'}
+              </button>
+            </div>
           ))}
         </div>
       )}

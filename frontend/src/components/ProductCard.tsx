@@ -1,5 +1,6 @@
 import type { Product } from '../api/products'
 import { QuantityStepper } from './QuantityStepper'
+import { HeartIcon } from './icons'
 
 interface ProductCardProps {
   product: Product
@@ -7,13 +8,21 @@ interface ProductCardProps {
   onAdd: () => void
   onIncrement: () => void
   onDecrement: () => void
+  favorite?: boolean
+  onToggleFavorite?: () => void
+  detailUrl?: string
 }
 
-export function ProductCard({ product, quantityInCart, onAdd, onIncrement, onDecrement }: ProductCardProps) {
+export function ProductCard({ product, quantityInCart, onAdd, onIncrement, onDecrement, favorite, onToggleFavorite, detailUrl }: ProductCardProps) {
   const hasDiscount = product.mrp !== undefined && product.mrp > product.price
 
   return (
-    <div className="card flex flex-col gap-3">
+    <div className="card relative flex flex-col gap-3">
+      {onToggleFavorite && (
+        <button type="button" className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-2 text-danger-500 shadow-card" onClick={onToggleFavorite} aria-label={favorite ? `Remove ${product.name} from favourites` : `Save ${product.name} to favourites`}>
+          <HeartIcon className="h-4 w-4" filled={favorite} />
+        </button>
+      )}
       {product.imageUrl ? (
         <img
           src={product.imageUrl}
@@ -29,7 +38,7 @@ export function ProductCard({ product, quantityInCart, onAdd, onIncrement, onDec
 
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-ink">{product.name}</h3>
+          <h3 className="truncate text-sm font-semibold text-ink">{detailUrl ? <a href={detailUrl} className="hover:text-brand-700">{product.name}</a> : product.name}</h3>
           <p className="text-xs text-ink-faint">{product.unit}</p>
         </div>
         {!product.inStock && (

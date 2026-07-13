@@ -31,4 +31,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     /** Verified-purchase gate for {@code ReviewService} - only a customer with a delivered
      *  order from this supermarket may review it. */
     boolean existsByUserIdAndSupermarketIdAndStatus(Long userId, Long supermarketId, OrderStatus status);
+
+    boolean existsByUserIdAndStatusNot(Long userId, OrderStatus status);
 }

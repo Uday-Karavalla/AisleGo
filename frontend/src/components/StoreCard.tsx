@@ -1,21 +1,19 @@
 import type { Store } from '../api/stores'
-import { StarIcon, ClockIcon, MapPinIcon, StoreIcon, ChevronRightIcon } from './icons'
+import { StarIcon, ClockIcon, MapPinIcon, StoreIcon, ChevronRightIcon, HeartIcon } from './icons'
 
 interface StoreCardProps {
   store: Store
   onOpen: (store: Store) => void
+  favorite?: boolean
+  onToggleFavorite?: () => void
 }
 
-export function StoreCard({ store, onOpen }: StoreCardProps) {
+export function StoreCard({ store, onOpen, favorite, onToggleFavorite }: StoreCardProps) {
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(store)}
-      disabled={!store.isOpen}
-      className="card group relative flex w-full items-center gap-4 overflow-hidden border border-transparent text-left transition hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-pop active:scale-[0.99] disabled:opacity-60 disabled:hover:translate-y-0"
-    >
+    <div className="card group relative flex w-full items-center gap-4 overflow-hidden border border-transparent text-left transition hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-pop">
+      <button type="button" onClick={() => onOpen(store)} disabled={!store.isOpen} className="absolute inset-0 z-0 disabled:cursor-not-allowed" aria-label={`Open ${store.name}`} />
       <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-400 via-brand-600 to-brand-800 opacity-0 transition group-hover:opacity-100" />
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+      <div className="pointer-events-none flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
         {store.logoUrl ? (
           <img src={store.logoUrl} alt={`${store.name} logo`} className="h-full w-full rounded-2xl object-cover" />
         ) : (
@@ -23,7 +21,7 @@ export function StoreCard({ store, onOpen }: StoreCardProps) {
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="pointer-events-none min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h3 className="truncate text-base font-semibold text-ink">{store.name}</h3>
           {!store.isOpen && (
@@ -59,10 +57,15 @@ export function StoreCard({ store, onOpen }: StoreCardProps) {
       </div>
 
       {store.isOpen && (
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700 transition group-hover:bg-brand-600 group-hover:text-white">
+        <span className="pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700 transition group-hover:bg-brand-600 group-hover:text-white">
           <ChevronRightIcon className="h-5 w-5" />
         </span>
       )}
-    </button>
+      {onToggleFavorite && (
+        <button type="button" onClick={onToggleFavorite} className="absolute right-2 top-2 z-10 rounded-full bg-white p-1.5 text-danger-500 shadow-card" aria-label={favorite ? `Remove ${store.name} from favourites` : `Save ${store.name} to favourites`}>
+          <HeartIcon className="h-4 w-4" filled={favorite} />
+        </button>
+      )}
+    </div>
   )
 }

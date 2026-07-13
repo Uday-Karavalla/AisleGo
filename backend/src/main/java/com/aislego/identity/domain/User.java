@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -52,4 +53,20 @@ public class User extends BaseEntity {
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
     private Set<Role> roles = new HashSet<>();
+
+    /**
+     * Keep Hibernate's managed collection mutable even when callers use convenience factories
+     * such as {@code Set.of(...)}. Hibernate clears and repopulates collection values during a
+     * merge, which immutable JDK sets do not support.
+     */
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles == null ? new HashSet<>() : new HashSet<>(roles);
+    }
+
+    @Column(name = "referral_code", unique = true, length = 24)
+    private String referralCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "referred_by_user_id")
+    private User referredBy;
 }

@@ -6,6 +6,10 @@ import type { Cart, CartItem } from '../api/cart'
 import type { CartCouponState } from '../api/cart'
 import { ApiError, getAuthToken } from '../api/client'
 import type { Product } from '../api/products'
+import type { Order } from '../api/orders'
+import { useOptionalAuth } from './AuthContext'
+import { useRef } from 'react'
+import { trackEvent } from '../api/growth'
 
 const DELIVERY_FEE = 25
 
@@ -50,6 +54,7 @@ interface CartContextValue {
   removeItem: (itemId: string) => void
   clearCart: () => void
   applyCoupon: (code: string) => Promise<void>
+  replaceWithOrder: (order: Order, serverCart: CartCouponState) => void
   pendingConflict: PendingConflict | null
   confirmSwitchStore: () => void
   cancelSwitchStore: () => void
@@ -58,25 +63,43 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  // NOTE: cart state is optimistic/local-first. Calls to cartApi are best-effort
-  // (fire-and-forget) so the UI keeps working before the backend exists; once the
-  // real endpoints are live, wire the returned Cart (with server-assigned item ids)
-  // back into this state instead of trusting the local copy.
+  // Optimistic/local-first lets signed-out shoppers build a cart. Authenticated responses
+  // replace temporary UUID line ids with server ids, and the login handoff below copies a
+  // guest cart into the real backend before checkout.
   const [cart, setCart] = useLocalStorage<Cart>('aislego.cart', EMPTY_CART)
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null)
+  const user = useOptionalAuth()?.user ?? null
+  const syncedGuestCartForUser = useRef<number | null>(null)
 
   const syncServerPricing = useCallback(
     (serverCart: CartCouponState) => {
-      setCart((current) =>
-        ({
+      setCart((current) => {
+        const serverItems = serverCart.items?.map((item) => {
+          const local = current.items.find((candidate) => candidate.productId === String(item.productId))
+          return {
+            id: String(item.id),
+            productId: String(item.productId),
+            storeId: local?.storeId ?? current.storeId ?? '',
+            storeName: local?.storeName ?? current.storeName ?? 'Selected store',
+            name: item.productName,
+            price: item.unitPrice,
+            unit: local?.unit ?? '',
+            imageUrl: local?.imageUrl,
+            quantity: item.quantity,
+            allowSubstitution: local?.allowSubstitution ?? true,
+          }
+        })
+        return ({
           ...current,
+          id: serverCart.id ? String(serverCart.id) : current.id,
+          items: serverItems ?? current.items,
           subtotal: serverCart.subtotal,
           deliveryFee: serverCart.deliveryFee,
           couponCode: serverCart.couponCode,
           discount: serverCart.discount,
           total: serverCart.total,
-        }),
-      )
+        })
+      })
     },
     [setCart],
   )
@@ -98,6 +121,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [syncServerPricing])
+
+  // A signed-out shopper can build a real local cart. On their first login in this browser,
+  // copy UUID-backed guest lines to the authenticated server cart so checkout does not lose it.
+  useEffect(() => {
+    if (!user?.roles.includes('CUSTOMER') || syncedGuestCartForUser.current === user.id) return
+    const guestItems = cart.items.filter((item) => item.id.includes('-'))
+    if (guestItems.length === 0) {
+      syncedGuestCartForUser.current = user.id
+      return
+    }
+    syncedGuestCartForUser.current = user.id
+    ;(async () => {
+      try {
+        await cartApi.clear()
+        let response: CartCouponState | null = null
+        for (const item of guestItems) {
+          response = await cartApi.addItem({ productId: item.productId, storeId: item.storeId, quantity: item.quantity })
+        }
+        if (response) syncServerPricing(response)
+      } catch {
+        syncedGuestCartForUser.current = null
+      }
+    })()
+  }, [user, cart.items, syncServerPricing])
 
   const performAdd = useCallback(
     (input: AddToCartInput, baseCart: Cart) => {
@@ -130,6 +177,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           items: nextItems,
         }),
       )
+      trackEvent('add_to_cart', { productId: input.product.id, storeId: input.storeId, quantity: input.quantity, value: input.product.price })
 
       cartApi
         .addItem({ productId: input.product.id, storeId: input.storeId, quantity: input.quantity })
@@ -233,9 +281,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const trimmed = code.trim()
       const serverCart = trimmed ? await cartApi.applyCoupon(trimmed) : await cartApi.removeCoupon()
       syncServerPricing(serverCart)
+      if (trimmed) trackEvent('coupon_apply', { code: trimmed, discount: serverCart.discount })
     },
     [syncServerPricing],
   )
+
+  const replaceWithOrder = useCallback((order: Order, serverCart: CartCouponState) => {
+    setCart({
+      id: serverCart.id ? String(serverCart.id) : 'reorder-cart',
+      storeId: String(order.branchId),
+      storeName: `Store from order #${order.id}`,
+      items: (serverCart.items ?? []).map((item) => ({
+        id: String(item.id),
+        productId: String(item.productId),
+        storeId: String(order.branchId),
+        storeName: `Store from order #${order.id}`,
+        name: item.productName,
+        price: item.unitPrice,
+        unit: '',
+        quantity: item.quantity,
+        allowSubstitution: true,
+      })),
+      subtotal: serverCart.subtotal,
+      deliveryFee: serverCart.deliveryFee,
+      discount: serverCart.discount,
+      total: serverCart.total,
+      couponCode: serverCart.couponCode,
+    })
+  }, [setCart])
 
   const value = useMemo<CartContextValue>(
     () => ({
@@ -247,11 +320,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem,
       clearCart,
       applyCoupon,
+      replaceWithOrder,
       pendingConflict,
       confirmSwitchStore,
       cancelSwitchStore,
     }),
-    [cart, addItem, updateQuantity, setSubstitution, removeItem, clearCart, applyCoupon, pendingConflict, confirmSwitchStore, cancelSwitchStore],
+    [cart, addItem, updateQuantity, setSubstitution, removeItem, clearCart, applyCoupon, replaceWithOrder, pendingConflict, confirmSwitchStore, cancelSwitchStore],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

@@ -41,7 +41,7 @@ public class CartService {
 
     @Transactional
     public CartResponse viewCart(Long userId) {
-        return toResponse(getOrCreateCart(userId));
+        return toResponse(getOrCreateCart(userId), userId);
     }
 
     /**
@@ -80,7 +80,7 @@ public class CartService {
         item.setQuantity(item.getQuantity() + request.quantity());
 
         cartRepository.save(cart);
-        return toResponse(cart);
+        return toResponse(cart, userId);
     }
 
     @Transactional
@@ -89,7 +89,7 @@ public class CartService {
         CartItem item = findOwnedItem(cart, itemId);
         item.setQuantity(quantity);
         cartRepository.save(cart);
-        return toResponse(cart);
+        return toResponse(cart, userId);
     }
 
     @Transactional
@@ -102,7 +102,7 @@ public class CartService {
             cart.setCouponCode(null);
         }
         cartRepository.save(cart);
-        return toResponse(cart);
+        return toResponse(cart, userId);
     }
 
     @Transactional
@@ -112,7 +112,7 @@ public class CartService {
         cart.setSupermarketId(null);
         cart.setCouponCode(null);
         cartRepository.save(cart);
-        return toResponse(cart);
+        return toResponse(cart, userId);
     }
 
     /** Validates the code (exists, active, not expired, applies to this cart's store) before
@@ -121,10 +121,10 @@ public class CartService {
     @Transactional
     public CartResponse applyCoupon(Long userId, String code) {
         Cart cart = getOrCreateCart(userId);
-        couponService.resolveApplicableCoupon(code, cart.getSupermarketId());
+        couponService.resolveApplicableCoupon(code, cart.getSupermarketId(), userId);
         cart.setCouponCode(code.trim().toUpperCase());
         cartRepository.save(cart);
-        return toResponse(cart);
+        return toResponse(cart, userId);
     }
 
     @Transactional
@@ -132,7 +132,7 @@ public class CartService {
         Cart cart = getOrCreateCart(userId);
         cart.setCouponCode(null);
         cartRepository.save(cart);
-        return toResponse(cart);
+        return toResponse(cart, userId);
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +141,7 @@ public class CartService {
         if (cart == null || cart.isEmpty()) {
             return List.of();
         }
-        return couponService.listApplicableCoupons(cart.getSupermarketId(), computeSubtotal(cart));
+        return couponService.listApplicableCoupons(cart.getSupermarketId(), computeSubtotal(cart), userId);
     }
 
     private CartItem findOwnedItem(Cart cart, Long itemId) {
@@ -167,11 +167,11 @@ public class CartService {
      * on an unrelated cart view - the shopper only sees an error when they actively try to
      * apply one (see {@link #applyCoupon}).
      */
-    private CartResponse toResponse(Cart cart) {
+    private CartResponse toResponse(Cart cart, Long userId) {
         Money subtotal = computeSubtotal(cart);
         Coupon coupon = null;
         if (cart.getCouponCode() != null) {
-            coupon = couponService.tryResolveApplicableCoupon(cart.getCouponCode(), cart.getSupermarketId())
+            coupon = couponService.tryResolveApplicableCoupon(cart.getCouponCode(), cart.getSupermarketId(), userId)
                     .orElse(null);
             if (coupon == null) {
                 cart.setCouponCode(null);

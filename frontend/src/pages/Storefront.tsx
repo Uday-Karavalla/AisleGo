@@ -9,9 +9,13 @@ import { reviewsApi } from '../api/reviews'
 import type { MyReviewStatus, StoreReviews } from '../api/reviews'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useFavorites } from '../context/FavoritesContext'
 import { ProductCard } from '../components/ProductCard'
 import { EmptyState } from '../components/EmptyState'
 import { SearchIcon, StarIcon, ClockIcon } from '../components/icons'
+import { trackEvent } from '../api/growth'
+import { Seo } from '../components/Seo'
+import { ShieldCheckIcon } from '../components/icons'
 
 const PAGE_SIZE = 12
 
@@ -21,6 +25,8 @@ export default function Storefront() {
   const { storeId } = useParams<{ storeId: string }>()
   const { cart, addItem, updateQuantity, removeItem } = useCart()
   const { user } = useAuth()
+  const { productIds: favoriteProductIds, toggleProduct } = useFavorites()
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
 
   const [store, setStore] = useState<Store | null>(null)
   const [storeStatus, setStoreStatus] = useState<Status>('loading')
@@ -50,6 +56,7 @@ export default function Storefront() {
       .then((result) => {
         setStore(result)
         setStoreStatus('success')
+        trackEvent('store_view', { branchId: result.id, supermarketId: result.supermarketId, name: result.name })
       })
       .catch(() => setStoreStatus('error'))
   }, [storeId])
@@ -128,6 +135,7 @@ export default function Storefront() {
 
   useEffect(() => {
     setPage(1)
+    if (debouncedSearch) trackEvent('search', { query: debouncedSearch, supermarketId })
   }, [debouncedSearch, category])
 
   useEffect(() => {
@@ -169,7 +177,9 @@ export default function Storefront() {
     <div className="page-wide flex flex-col gap-4 px-5 py-6">
       {store && (
         <div>
+          <Seo title={`${store.name} grocery delivery | AisleGo`} description={`Shop groceries online from ${store.name}. Browse products, see verified reviews, choose delivery or pickup, and save with AisleGo offers.`} canonicalPath={`/stores/${storeId}`} imageUrl={store.logoUrl} structuredData={{ '@context': 'https://schema.org', '@type': 'GroceryStore', name: store.name, image: store.logoUrl, address: store.address, aggregateRating: store.rating && store.ratingCount ? { '@type': 'AggregateRating', ratingValue: store.rating, reviewCount: store.ratingCount } : undefined, url: window.location.href }} />
           <h1 className="text-xl font-extrabold text-ink">{store.name}</h1>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-brand-700"><ShieldCheckIcon className="h-4 w-4" /> Verified supermarket</p>
           <div className="mt-1 flex items-center gap-3 text-sm text-ink-muted">
             {typeof store.rating === 'number' && (
               <span className="inline-flex items-center gap-1">
@@ -222,6 +232,13 @@ export default function Storefront() {
         </div>
       )}
 
+      {user?.roles.includes('CUSTOMER') && favoriteProductIds.size > 0 && (
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-ink-muted">
+          <input type="checkbox" checked={favoritesOnly} onChange={(event) => setFavoritesOnly(event.target.checked)} className="accent-brand-600" />
+          Show saved products only
+        </label>
+      )}
+
       {productsStatus === 'error' && (
         <EmptyState title="Couldn't load products" description="Please try again in a moment." />
       )}
@@ -231,7 +248,7 @@ export default function Storefront() {
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {products.map((product) => {
+        {products.filter((product) => !favoritesOnly || favoriteProductIds.has(product.id)).map((product) => {
           const cartItem = cart.items.find((item) => item.productId === product.id)
           const quantityInCart = cartItem?.quantity ?? 0
           return (
@@ -246,6 +263,9 @@ export default function Storefront() {
                 if (cartItem.quantity <= 1) removeItem(cartItem.id)
                 else updateQuantity(cartItem.id, cartItem.quantity - 1)
               }}
+              favorite={favoriteProductIds.has(product.id)}
+              onToggleFavorite={user?.roles.includes('CUSTOMER') ? () => { void toggleProduct(product.id) } : undefined}
+              detailUrl={`/stores/${storeId}/products/${product.id}`}
             />
           )
         })}

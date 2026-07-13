@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { DownloadIcon, XIcon } from './icons'
+import { trackEvent } from '../api/growth'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -64,7 +65,8 @@ export function PwaInstallPrompt() {
   async function install() {
     if (!deferredPrompt) return
     await deferredPrompt.prompt()
-    await deferredPrompt.userChoice
+    const choice = await deferredPrompt.userChoice
+    if (choice.outcome === 'accepted') trackEvent('pwa_install', { platform: choice.platform })
     dismiss()
   }
 

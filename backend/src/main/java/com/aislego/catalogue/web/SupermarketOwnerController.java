@@ -11,6 +11,10 @@ import com.aislego.catalogue.dto.UpdateBranchRequest;
 import com.aislego.catalogue.dto.UpdateCouponRequest;
 import com.aislego.catalogue.dto.UpdateInventoryRequest;
 import com.aislego.catalogue.dto.UpdateProductRequest;
+import com.aislego.catalogue.dto.BulkProductImportRequest;
+import com.aislego.catalogue.dto.BulkProductImportResponse;
+import com.aislego.growth.dto.OwnerInsightsResponse;
+import com.aislego.growth.service.OwnerInsightsService;
 import com.aislego.catalogue.service.CouponService;
 import com.aislego.catalogue.service.OwnerCatalogService;
 import com.aislego.catalogue.service.SupermarketVerificationService;
@@ -46,15 +50,17 @@ public class SupermarketOwnerController {
     private final OwnerCatalogService ownerCatalogService;
     private final OwnerOrderService ownerOrderService;
     private final CouponService couponService;
+    private final OwnerInsightsService ownerInsightsService;
 
     public SupermarketOwnerController(SupermarketVerificationService verificationService,
                                        OwnerCatalogService ownerCatalogService,
                                        OwnerOrderService ownerOrderService,
-                                       CouponService couponService) {
+                                       CouponService couponService, OwnerInsightsService ownerInsightsService) {
         this.verificationService = verificationService;
         this.ownerCatalogService = ownerCatalogService;
         this.ownerOrderService = ownerOrderService;
         this.couponService = couponService;
+        this.ownerInsightsService = ownerInsightsService;
     }
 
     /**
@@ -102,6 +108,13 @@ public class SupermarketOwnerController {
     public OwnerProductResponse createProduct(@AuthenticationPrincipal AuthenticatedUser principal,
                                                @Valid @RequestBody CreateProductRequest request) {
         return ownerCatalogService.createProduct(principal.userId(), request);
+    }
+
+    @PostMapping("/mine/products/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BulkProductImportResponse importProducts(@AuthenticationPrincipal AuthenticatedUser principal,
+                                                     @Valid @RequestBody BulkProductImportRequest request) {
+        return ownerCatalogService.importProducts(principal.userId(), request);
     }
 
     @PatchMapping("/mine/products/{productId}")
@@ -161,5 +174,10 @@ public class SupermarketOwnerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCoupon(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable Long couponId) {
         couponService.deleteStoreCoupon(principal.userId(), couponId);
+    }
+
+    @GetMapping("/mine/insights")
+    public OwnerInsightsResponse insights(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return ownerInsightsService.get(principal.userId());
     }
 }

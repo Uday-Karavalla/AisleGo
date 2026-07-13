@@ -4,6 +4,9 @@ import com.aislego.common.security.AuthenticatedUser;
 import com.aislego.orders.dto.OrderResponse;
 import com.aislego.orders.dto.OrderStatusResponse;
 import com.aislego.orders.service.OrderService;
+import com.aislego.orders.service.ReorderService;
+import com.aislego.orders.dto.CartResponse;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,9 +22,11 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final ReorderService reorderService;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, ReorderService reorderService) {
         this.orderService = orderService;
+        this.reorderService = reorderService;
     }
 
     @GetMapping
@@ -38,5 +43,10 @@ public class OrderController {
     public OrderStatusResponse getStatus(@AuthenticationPrincipal AuthenticatedUser principal,
                                           @PathVariable Long orderId) {
         return new OrderStatusResponse(orderService.getMyOrderStatus(principal.userId(), orderId));
+    }
+
+    @PostMapping("/{orderId}/reorder")
+    public CartResponse reorder(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable Long orderId) {
+        return reorderService.reorder(principal.userId(), orderId);
     }
 }

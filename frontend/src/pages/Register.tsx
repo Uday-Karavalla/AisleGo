@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../api/client'
 import type { RegisterPayload } from '../api/auth'
@@ -16,9 +16,13 @@ const EMPTY_FORM: RegisterPayload = {
 export default function Register() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { register } = useAuth()
   const returnTo = safeReturnPath(location.state)
-  const [form, setForm] = useState<RegisterPayload>(EMPTY_FORM)
+  const [form, setForm] = useState<RegisterPayload>(() => ({
+    ...EMPTY_FORM,
+    referralCode: searchParams.get('ref') ?? '',
+  }))
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -64,6 +68,13 @@ export default function Register() {
           onChange={(event) => update('fullName', event.target.value)}
           autoComplete="name"
           required
+        />
+        <input
+          className="input-field uppercase"
+          placeholder="Referral code (optional)"
+          value={form.referralCode ?? ''}
+          onChange={(event) => update('referralCode', event.target.value)}
+          maxLength={24}
         />
         <input
           className="input-field"

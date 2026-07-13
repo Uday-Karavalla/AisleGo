@@ -11,6 +11,8 @@ import type {
   OwnerProduct,
   UpdateOwnerBranch,
   UpdateOwnerProduct,
+  MySupermarket,
+  OwnerInsights,
 } from '../api/supermarket'
 import { EmptyState } from '../components/EmptyState'
 import { StoreIcon } from '../components/icons'
@@ -37,6 +39,7 @@ const EMPTY_PRODUCT_DRAFT = {
   price: '',
   currency: 'INR',
   categoryName: '',
+  imageUrl: '',
   initialStockQuantity: '0',
 }
 
@@ -87,6 +90,8 @@ export default function MyStoreCatalogue() {
   const { user } = useAuth()
   const [branches, setBranches] = useState<OwnerBranch[]>([])
   const [products, setProducts] = useState<OwnerProduct[]>([])
+  const [supermarket, setSupermarket] = useState<MySupermarket | null>(null)
+  const [insights, setInsights] = useState<OwnerInsights | null>(null)
   const [status, setStatus] = useState<Status>('loading')
   const [message, setMessage] = useState<string | null>(null)
 
@@ -112,20 +117,53 @@ export default function MyStoreCatalogue() {
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [deleteProductTarget, setDeleteProductTarget] = useState<OwnerProduct | null>(null)
   const [deletingProduct, setDeletingProduct] = useState(false)
+  const [bulkBranchId, setBulkBranchId] = useState<number | null>(null)
+  const [bulkImporting, setBulkImporting] = useState(false)
 
   function load() {
     setStatus('loading')
-    Promise.all([supermarketOwnerApi.listBranches(), supermarketOwnerApi.listProducts()])
-      .then(([branchList, productList]) => {
+    Promise.all([supermarketOwnerApi.listBranches(), supermarketOwnerApi.listProducts(), supermarketOwnerApi.mine()])
+      .then(([branchList, productList, mine]) => {
         setBranches(branchList)
         setProducts(productList)
         setStatus('success')
         setProductBranchId((prev) => prev ?? branchList[0]?.id ?? null)
+        setBulkBranchId((prev) => prev ?? branchList[0]?.id ?? null)
+        setSupermarket(mine)
       })
       .catch(() => setStatus('error'))
   }
 
   useEffect(load, [])
+  useEffect(() => { supermarketOwnerApi.insights().then(setInsights).catch(() => {}) }, [])
+
+  async function handleCsvImport(file: File) {
+    if (!bulkBranchId) { setMessage('Choose a branch before importing products.'); return }
+    setBulkImporting(true)
+    setMessage(null)
+    try {
+      const rows = (await file.text()).split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      if (rows.length < 2) throw new Error('The CSV needs a header row and at least one product.')
+      const header = rows[0].split(',').map((value) => value.trim().toLowerCase())
+      const required = ['name', 'sku', 'price']
+      if (required.some((column) => !header.includes(column))) throw new Error('CSV headers must include name, sku and price.')
+      const productsToImport: NewOwnerProduct[] = rows.slice(1).map((line, index) => {
+        const values = line.split(',').map((value) => value.trim().replace(/^"|"$/g, ''))
+        const value = (column: string) => values[header.indexOf(column)] ?? ''
+        const price = Number(value('price'))
+        const stock = Number(value('stock') || 0)
+        if (!value('name') || !value('sku') || !Number.isFinite(price) || price <= 0) throw new Error(`Invalid product on CSV row ${index + 2}.`)
+        return { name: value('name'), description: value('description'), sku: value('sku'), price, currency: value('currency') || 'INR', categoryName: value('category'), imageUrl: value('imageurl'), branchId: bulkBranchId, initialStockQuantity: Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0 }
+      })
+      const result = await supermarketOwnerApi.importProducts(productsToImport)
+      setProducts((current) => [...current, ...result.products].sort((a, b) => a.name.localeCompare(b.name)))
+      setMessage(`${result.importedCount} products imported successfully.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not import that CSV file.')
+    } finally {
+      setBulkImporting(false)
+    }
+  }
 
   async function handleCreateBranch(event: FormEvent) {
     event.preventDefault()
@@ -232,6 +270,7 @@ export default function MyStoreCatalogue() {
         price: Number(productDraft.price),
         currency: productDraft.currency,
         categoryName: productDraft.categoryName || undefined,
+        imageUrl: productDraft.imageUrl || undefined,
         branchId: productBranchId,
         initialStockQuantity: Number(productDraft.initialStockQuantity) || 0,
       }
@@ -440,6 +479,10 @@ export default function MyStoreCatalogue() {
         </p>
       )}
 
+      {insights && (
+        <section><div className="mb-2"><h2 className="text-sm font-bold text-ink">Store performance</h2><p className="text-xs text-ink-muted">Last 30 days</p></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4"><div className="card"><p className="text-xs text-ink-faint">Orders</p><p className="text-2xl font-black text-ink">{insights.ordersLast30Days}</p></div><div className="card"><p className="text-xs text-ink-faint">Revenue</p><p className="text-2xl font-black text-ink">₹{insights.revenueLast30Days.toFixed(0)}</p></div><div className="card"><p className="text-xs text-ink-faint">Average order</p><p className="text-2xl font-black text-ink">₹{insights.averageOrderValue.toFixed(0)}</p></div><div className="card"><p className="text-xs text-ink-faint">Low stock</p><p className="text-2xl font-black text-ink">{insights.lowStockItems}</p></div></div>{insights.topProducts.length > 0 && <div className="mt-3 card"><h3 className="text-xs font-bold text-ink">Best sellers</h3><div className="mt-2 flex flex-wrap gap-2">{insights.topProducts.map((product) => <span key={product.name} className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">{product.name} · {product.unitsSold}</span>)}</div></div>}</section>
+      )}
+
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink">Branches</h2>
@@ -539,11 +582,30 @@ export default function MyStoreCatalogue() {
         )}
       </section>
 
+      {branches.length > 0 && supermarket && (
+        <section className="card flex flex-col gap-3 print:border-0 print:shadow-none">
+          <div className="print:hidden"><h2 className="text-sm font-bold text-ink">Promote your store</h2><p className="text-xs text-ink-muted">Print a QR card or share your storefront link with existing customers.</p></div>
+          <div className="grid gap-3 sm:grid-cols-2">{branches.map((branch) => {
+            const url = `${window.location.origin}/stores/${branch.id}`
+            return <div key={branch.id} className="rounded-2xl border border-black/10 p-4 text-center"><p className="text-lg font-black text-ink">{supermarket.name}</p><p className="text-sm text-ink-muted">{branch.name}</p><img className="mx-auto my-3 h-36 w-36" alt={`QR code for ${branch.name}`} src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}`} /><p className="break-all text-[10px] text-ink-faint">{url}</p><div className="mt-3 flex gap-2 print:hidden"><button type="button" className="btn-secondary flex-1 py-2 text-xs" onClick={() => navigator.clipboard.writeText(url)}>Copy link</button><a className="btn-secondary flex-1 py-2 text-xs" href={`https://wa.me/?text=${encodeURIComponent(`Order from ${supermarket.name}: ${url}`)}`} target="_blank" rel="noreferrer">WhatsApp</a></div></div>
+          })}</div>
+          <button type="button" className="btn-primary print:hidden" onClick={() => window.print()}>Print store QR cards</button>
+        </section>
+      )}
+
       <CouponManager
         api={ownerCouponApi}
         title="Store coupons"
         description="Create codes that apply only to purchases from your supermarket."
       />
+
+      {branches.length > 0 && (
+        <section className="card flex flex-col gap-3">
+          <div><h2 className="text-sm font-bold text-ink">Bulk catalogue import</h2><p className="text-xs text-ink-muted">Upload up to 500 products using CSV headers: name, description, sku, price, currency, category, imageUrl, stock.</p></div>
+          <select className="input-field" value={bulkBranchId ?? ''} onChange={(event) => setBulkBranchId(Number(event.target.value))}>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
+          <label className="btn-secondary cursor-pointer text-center"><input type="file" accept=".csv,text/csv" className="sr-only" disabled={bulkImporting} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleCsvImport(file); event.target.value = '' }} />{bulkImporting ? 'Importing…' : 'Choose CSV file'}</label>
+        </section>
+      )}
 
       {branches.length > 0 && (
         <section className="card flex flex-col gap-3">
@@ -561,6 +623,13 @@ export default function MyStoreCatalogue() {
               placeholder="Description (optional)"
               value={productDraft.description}
               onChange={(e) => setProductDraft((d) => ({ ...d, description: e.target.value }))}
+            />
+            <input
+              className="input-field"
+              type="url"
+              placeholder="Product image URL (optional)"
+              value={productDraft.imageUrl}
+              onChange={(e) => setProductDraft((d) => ({ ...d, imageUrl: e.target.value }))}
             />
             <div className="flex gap-2">
               <input

@@ -19,4 +19,8 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     List<Coupon> findBySupermarketIdOrderByCreatedAtDesc(Long supermarketId);
 
     List<Coupon> findBySupermarketIsNullOrderByCreatedAtDesc();
+
+    List<Coupon> findBySupermarketIsNullAndAssignedUserIsNullOrderByCreatedAtDesc();
+
+    List<Coupon> findByAssignedUserIdAndActiveTrueOrderByCreatedAtDesc(Long userId);
 }

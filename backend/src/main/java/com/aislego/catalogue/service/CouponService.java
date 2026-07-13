@@ -8,11 +8,17 @@ import com.aislego.catalogue.dto.AvailableCouponResponse;
 import com.aislego.catalogue.dto.CreateCouponRequest;
 import com.aislego.catalogue.dto.UpdateCouponRequest;
 import com.aislego.catalogue.repository.CouponRepository;
+import com.aislego.catalogue.repository.CouponRedemptionRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.catalogue.domain.CouponRedemption;
 import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
+import com.aislego.orders.domain.Order;
+import com.aislego.orders.domain.OrderStatus;
+import com.aislego.orders.repository.OrderRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,10 +46,24 @@ public class CouponService {
 
     private final CouponRepository couponRepository;
     private final SupermarketRepository supermarketRepository;
+    private final CouponRedemptionRepository redemptionRepository;
+    private final OrderRepository orderRepository;
 
+    @Autowired
+    public CouponService(CouponRepository couponRepository, SupermarketRepository supermarketRepository,
+                         CouponRedemptionRepository redemptionRepository, OrderRepository orderRepository) {
+        this.couponRepository = couponRepository;
+        this.supermarketRepository = supermarketRepository;
+        this.redemptionRepository = redemptionRepository;
+        this.orderRepository = orderRepository;
+    }
+
+    /** Kept package-visible for focused unit tests that don't exercise redemption rules. */
     public CouponService(CouponRepository couponRepository, SupermarketRepository supermarketRepository) {
         this.couponRepository = couponRepository;
         this.supermarketRepository = supermarketRepository;
+        this.redemptionRepository = null;
+        this.orderRepository = null;
     }
 
     // ---- Admin: platform-wide coupons ----
@@ -55,6 +75,7 @@ public class CouponService {
     @Transactional(readOnly = true)
     public List<CouponResponse> listPlatformCoupons() {
         return couponRepository.findBySupermarketIsNullOrderByCreatedAtDesc().stream()
+                .filter(coupon -> coupon.getAssignedUser() == null)
                 .map(CouponResponse::from)
                 .toList();
     }
@@ -95,24 +116,34 @@ public class CouponService {
      *  told exactly why a code didn't work. */
     @Transactional(readOnly = true)
     public Coupon resolveApplicableCoupon(String code, Long cartSupermarketId) {
+        return resolveApplicableCoupon(code, cartSupermarketId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Coupon resolveApplicableCoupon(String code, Long cartSupermarketId, Long userId) {
         String normalized = code.trim();
         if (cartSupermarketId != null) {
             Optional<Coupon> storeScoped = couponRepository.findByCodeIgnoreCaseAndSupermarketId(normalized, cartSupermarketId);
             if (storeScoped.isPresent()) {
-                return validate(storeScoped.get());
+                return validate(storeScoped.get(), userId);
             }
         }
         Coupon platformWide = couponRepository.findByCodeIgnoreCaseAndSupermarketIsNull(normalized)
                 .orElseThrow(() -> new NotFoundException("This coupon code isn't valid"));
-        return validate(platformWide);
+        return validate(platformWide, userId);
     }
 
     /** Non-throwing variant for the passive "is the coupon still on this cart still good"
      *  re-check on every cart read - see CartService#toResponse. */
     @Transactional(readOnly = true)
     public Optional<Coupon> tryResolveApplicableCoupon(String code, Long cartSupermarketId) {
+        return tryResolveApplicableCoupon(code, cartSupermarketId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Coupon> tryResolveApplicableCoupon(String code, Long cartSupermarketId, Long userId) {
         try {
-            return Optional.of(resolveApplicableCoupon(code, cartSupermarketId));
+            return Optional.of(resolveApplicableCoupon(code, cartSupermarketId, userId));
         } catch (RuntimeException ex) {
             return Optional.empty();
         }
@@ -135,6 +166,11 @@ public class CouponService {
      *  precedence over a platform coupon that happens to use the same code. */
     @Transactional(readOnly = true)
     public List<AvailableCouponResponse> listApplicableCoupons(Long supermarketId, Money subtotal) {
+        return listApplicableCoupons(supermarketId, subtotal, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AvailableCouponResponse> listApplicableCoupons(Long supermarketId, Money subtotal, Long userId) {
         if (supermarketId == null || !subtotal.isPositive()) {
             return List.of();
         }
@@ -142,10 +178,12 @@ public class CouponService {
         LinkedHashMap<String, Coupon> byCode = new LinkedHashMap<>();
         couponRepository.findBySupermarketIdOrderByCreatedAtDesc(supermarketId).stream()
                 .filter(this::isCurrentlyValid)
+                .filter(coupon -> isEligibleForUser(coupon, userId))
                 .filter(coupon -> hasCompatibleCurrency(coupon, subtotal))
                 .forEach(coupon -> byCode.put(coupon.getCode().toUpperCase(Locale.ROOT), coupon));
         couponRepository.findBySupermarketIsNullOrderByCreatedAtDesc().stream()
                 .filter(this::isCurrentlyValid)
+                .filter(coupon -> isEligibleForUser(coupon, userId))
                 .filter(coupon -> hasCompatibleCurrency(coupon, subtotal))
                 .forEach(coupon -> byCode.putIfAbsent(coupon.getCode().toUpperCase(Locale.ROOT), coupon));
 
@@ -170,6 +208,9 @@ public class CouponService {
         coupon.setSupermarket(supermarket);
         applyDiscountFields(coupon, request.discountType(), request.percentOff(), request.amountOff(), request.currency());
         coupon.setExpiresAt(request.expiresAt());
+        coupon.setFirstOrderOnly(request.firstOrderOnly());
+        coupon.setMaxRedemptions(request.maxRedemptions());
+        coupon.setPerUserLimit(request.perUserLimit());
         coupon.setActive(true);
         return couponRepository.save(coupon);
     }
@@ -178,6 +219,9 @@ public class CouponService {
         applyDiscountFields(coupon, request.discountType(), request.percentOff(), request.amountOff(), request.currency());
         coupon.setExpiresAt(request.expiresAt());
         coupon.setActive(request.active());
+        coupon.setFirstOrderOnly(request.firstOrderOnly());
+        coupon.setMaxRedemptions(request.maxRedemptions());
+        coupon.setPerUserLimit(request.perUserLimit());
         return couponRepository.save(coupon);
     }
 
@@ -199,14 +243,63 @@ public class CouponService {
         }
     }
 
-    private Coupon validate(Coupon coupon) {
+    private Coupon validate(Coupon coupon, Long userId) {
         if (!coupon.isActive()) {
             throw new BadRequestException("This coupon is no longer active");
         }
         if (coupon.getExpiresAt() != null && coupon.getExpiresAt().isBefore(Instant.now())) {
             throw new BadRequestException("This coupon has expired");
         }
+        if (coupon.getAssignedUser() != null
+                && (userId == null || !coupon.getAssignedUser().getId().equals(userId))) {
+            throw new NotFoundException("This coupon code isn't valid");
+        }
+        if (userId != null && orderRepository != null && coupon.isFirstOrderOnly()
+                && orderRepository.existsByUserIdAndStatusNot(userId, OrderStatus.CANCELLED)) {
+            throw new BadRequestException("This offer is only available on your first order");
+        }
+        if (redemptionRepository != null) {
+            Long scopeId = coupon.getSupermarket() == null ? null : coupon.getSupermarket().getId();
+            if (coupon.getMaxRedemptions() != null
+                    && redemptionRepository.countForCoupon(coupon.getCode(), scopeId) >= coupon.getMaxRedemptions()) {
+                throw new BadRequestException("This coupon has reached its redemption limit");
+            }
+            if (userId != null && coupon.getPerUserLimit() != null
+                    && redemptionRepository.countForUserAndCoupon(userId, coupon.getCode(), scopeId)
+                    >= coupon.getPerUserLimit()) {
+                throw new BadRequestException("You have already used this coupon");
+            }
+        }
         return coupon;
+    }
+
+    private boolean isEligibleForUser(Coupon coupon, Long userId) {
+        try {
+            validate(coupon, userId);
+            return true;
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
+    /** Records a successful paid redemption once. Orders keep their code snapshot even if the
+     * coupon is later deleted, so the ledger deliberately stores the code and scope as values. */
+    public void recordRedemption(Order order) {
+        if (order.getCouponCode() == null || redemptionRepository == null
+                || redemptionRepository.existsByOrderId(order.getId())) {
+            return;
+        }
+        CouponRedemption redemption = new CouponRedemption();
+        redemption.setCouponCode(order.getCouponCode());
+        Long supermarketId = order.getSupermarket().getId();
+        boolean storeScoped = couponRepository
+                .findByCodeIgnoreCaseAndSupermarketId(order.getCouponCode(), supermarketId)
+                .isPresent();
+        redemption.setSupermarketId(storeScoped ? supermarketId : null);
+        redemption.setUser(order.getUser());
+        redemption.setOrder(order);
+        redemption.setRedeemedAt(Instant.now());
+        redemptionRepository.save(redemption);
     }
 
     private boolean isCurrentlyValid(Coupon coupon) {

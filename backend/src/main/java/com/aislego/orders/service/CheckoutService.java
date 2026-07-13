@@ -38,6 +38,9 @@ import com.aislego.payments.domain.Payment;
 import com.aislego.payments.domain.PaymentStatus;
 import com.aislego.payments.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.aislego.growth.service.ReferralService;
+import com.aislego.growth.service.UserNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +86,11 @@ public class CheckoutService {
     private final NotificationService notificationService;
     private final CouponService couponService;
     private final String provider;
+
+    @Autowired(required = false)
+    private ReferralService referralService;
+    @Autowired(required = false)
+    private UserNotificationService userNotificationService;
 
     public CheckoutService(CartRepository cartRepository, OrderRepository orderRepository,
                             BranchRepository branchRepository, UserRepository userRepository,
@@ -190,6 +198,10 @@ public class CheckoutService {
         if (result.success()) {
             payment.setStatus(PaymentStatus.SUCCEEDED);
             order.setStatus(OrderStatus.PAYMENT_CONFIRMED);
+            couponService.recordRedemption(order);
+            if (referralService != null) {
+                referralService.rewardAfterFirstPurchase(order.getUser().getId());
+            }
             notifyOrder(order, "Payment confirmed",
                     "Payment for your order #" + order.getId() + " has been confirmed.");
         } else {
@@ -209,6 +221,9 @@ public class CheckoutService {
         User user = order.getUser();
         notificationService.send(new Notification(user.getFullName(), user.getEmail(), user.getPhone(),
                 subject, message));
+        if (userNotificationService != null) {
+            userNotificationService.create(user.getId(), subject, message, "/orders/" + order.getId());
+        }
     }
 
     private boolean isTerminal(OrderStatus status) {
@@ -326,7 +341,8 @@ public class CheckoutService {
         }
 
         Coupon coupon = cart.getCouponCode() == null ? null
-                : couponService.tryResolveApplicableCoupon(cart.getCouponCode(), cart.getSupermarketId()).orElse(null);
+                : couponService.tryResolveApplicableCoupon(cart.getCouponCode(), cart.getSupermarketId(), userId)
+                        .orElse(null);
         Money discount = couponService.calculateDiscount(coupon, subtotal);
         Money deliveryFee = OrderPricing.deliveryFee(currency, !cart.getItems().isEmpty(), request.fulfilmentType());
 

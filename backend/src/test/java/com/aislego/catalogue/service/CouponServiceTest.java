@@ -7,6 +7,10 @@ import com.aislego.catalogue.dto.CreateCouponRequest;
 import com.aislego.catalogue.dto.UpdateCouponRequest;
 import com.aislego.catalogue.repository.CouponRepository;
 import com.aislego.catalogue.repository.SupermarketRepository;
+import com.aislego.catalogue.repository.CouponRedemptionRepository;
+import com.aislego.orders.repository.OrderRepository;
+import com.aislego.orders.domain.OrderStatus;
+import com.aislego.identity.domain.User;
 import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.NotFoundException;
@@ -39,13 +43,17 @@ class CouponServiceTest {
     private CouponRepository couponRepository;
     @Mock
     private SupermarketRepository supermarketRepository;
+    @Mock
+    private CouponRedemptionRepository redemptionRepository;
+    @Mock
+    private OrderRepository orderRepository;
 
     private CouponService couponService;
     private Supermarket supermarket;
 
     @BeforeEach
     void setUp() {
-        couponService = new CouponService(couponRepository, supermarketRepository);
+        couponService = new CouponService(couponRepository, supermarketRepository, redemptionRepository, orderRepository);
         supermarket = new Supermarket();
         supermarket.setId(SUPERMARKET_ID);
         supermarket.setName("Neighbourhood Market");
@@ -258,6 +266,43 @@ class CouponServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("between 1 and 100");
         verify(couponRepository, never()).save(any());
+    }
+
+    @Test
+    void firstOrderOfferRejectsAUserWhoAlreadyPlacedAnOrder() {
+        Coupon coupon = percentageCoupon("WELCOME", 10);
+        coupon.setFirstOrderOnly(true);
+        when(couponRepository.findByCodeIgnoreCaseAndSupermarketIsNull("WELCOME")).thenReturn(Optional.of(coupon));
+        when(orderRepository.existsByUserIdAndStatusNot(42L, OrderStatus.CANCELLED)).thenReturn(true);
+
+        assertThatThrownBy(() -> couponService.resolveApplicableCoupon("WELCOME", null, 42L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("first order");
+    }
+
+    @Test
+    void perUserLimitRejectsARepeatRedemption() {
+        Coupon coupon = percentageCoupon("ONCE", 10);
+        coupon.setPerUserLimit(1);
+        when(couponRepository.findByCodeIgnoreCaseAndSupermarketIsNull("ONCE")).thenReturn(Optional.of(coupon));
+        when(redemptionRepository.countForUserAndCoupon(42L, "ONCE", null)).thenReturn(1L);
+
+        assertThatThrownBy(() -> couponService.resolveApplicableCoupon("ONCE", null, 42L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("already used");
+    }
+
+    @Test
+    void privateRewardCouponCannotBeUsedByAnotherShopper() {
+        Coupon coupon = flatCoupon("REFER-1", "100.00");
+        User owner = new User();
+        owner.setId(7L);
+        coupon.setAssignedUser(owner);
+        when(couponRepository.findByCodeIgnoreCaseAndSupermarketIsNull("REFER-1")).thenReturn(Optional.of(coupon));
+
+        assertThatThrownBy(() -> couponService.resolveApplicableCoupon("REFER-1", null, 42L))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("isn't valid");
     }
 
     private Coupon percentageCoupon(String code, int percentOff) {

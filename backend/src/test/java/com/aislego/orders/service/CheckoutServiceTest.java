@@ -221,7 +221,7 @@ class CheckoutServiceTest {
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cart));
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
         when(userRepository.getReferenceById(USER_ID)).thenReturn(buildCustomer());
-        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L)).thenReturn(Optional.of(coupon));
+        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L, USER_ID)).thenReturn(Optional.of(coupon));
         when(couponService.calculateDiscount(coupon, Money.of(BigDecimal.valueOf(60), "INR")))
                 .thenReturn(Money.of(BigDecimal.valueOf(6), "INR"));
         when(orderRepository.save(any())).thenAnswer(inv -> {

@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import com.aislego.identity.domain.User;
 
 /**
  * A discount code, either platform-wide ({@code supermarket == null}, created by an admin) or
@@ -61,4 +62,20 @@ public class Coupon extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(name = "first_order_only", nullable = false)
+    private boolean firstOrderOnly;
+
+    /** Null means there is no platform-wide redemption cap. */
+    @Column(name = "max_redemptions")
+    private Integer maxRedemptions;
+
+    /** Null means a shopper may reuse the coupon while it remains otherwise valid. */
+    @Column(name = "per_user_limit")
+    private Integer perUserLimit;
+
+    /** Optional owner of an automatically issued welcome/referral reward coupon. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_user_id")
+    private User assignedUser;
 }

@@ -120,3 +120,8 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
   return ctx
 }
+
+/** Infrastructure providers such as the guest cart can operate before/without auth. */
+export function useOptionalAuth(): AuthContextValue | undefined {
+  return useContext(AuthContext)
+}

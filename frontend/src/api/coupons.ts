@@ -12,6 +12,9 @@ export interface Coupon {
   currency: string | null
   expiresAt: string | null
   active: boolean
+  firstOrderOnly?: boolean
+  maxRedemptions?: number | null
+  perUserLimit?: number | null
 }
 
 export interface CreateCouponPayload {
@@ -21,6 +24,9 @@ export interface CreateCouponPayload {
   amountOff: number | null
   currency: string | null
   expiresAt: string | null
+  firstOrderOnly?: boolean
+  maxRedemptions?: number | null
+  perUserLimit?: number | null
 }
 
 export interface UpdateCouponPayload extends Omit<CreateCouponPayload, 'code'> {

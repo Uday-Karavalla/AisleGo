@@ -16,7 +16,10 @@ public record CouponResponse(
         BigDecimal amountOff,
         String currency,
         Instant expiresAt,
-        boolean active
+        boolean active,
+        boolean firstOrderOnly,
+        Integer maxRedemptions,
+        Integer perUserLimit
 ) {
     public static CouponResponse from(Coupon coupon) {
         return new CouponResponse(
@@ -28,7 +31,10 @@ public record CouponResponse(
                 coupon.getAmountOff() != null ? coupon.getAmountOff().getAmount() : null,
                 coupon.getAmountOff() != null ? coupon.getAmountOff().getCurrencyCode() : null,
                 coupon.getExpiresAt(),
-                coupon.isActive()
+                coupon.isActive(),
+                coupon.isFirstOrderOnly(),
+                coupon.getMaxRedemptions(),
+                coupon.getPerUserLimit()
         );
     }
 }

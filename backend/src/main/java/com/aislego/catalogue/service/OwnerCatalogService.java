@@ -12,6 +12,8 @@ import com.aislego.catalogue.dto.OwnerProductResponse;
 import com.aislego.catalogue.dto.UpdateBranchRequest;
 import com.aislego.catalogue.dto.UpdateInventoryRequest;
 import com.aislego.catalogue.dto.UpdateProductRequest;
+import com.aislego.catalogue.dto.BulkProductImportResponse;
+import com.aislego.catalogue.dto.BulkProductImportRequest;
 import com.aislego.catalogue.repository.BranchRepository;
 import com.aislego.catalogue.repository.CategoryRepository;
 import com.aislego.catalogue.repository.ProductRepository;
@@ -25,6 +27,8 @@ import com.aislego.inventory.repository.InventoryRepository;
 import com.aislego.orders.repository.CartItemRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.aislego.growth.service.UserNotificationService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -51,6 +55,8 @@ public class OwnerCatalogService {
     private final CategoryRepository categoryRepository;
     private final InventoryRepository inventoryRepository;
     private final CartItemRepository cartItemRepository;
+    @Autowired(required = false)
+    private UserNotificationService userNotificationService;
 
     public OwnerCatalogService(SupermarketRepository supermarketRepository, BranchRepository branchRepository,
                                 ProductRepository productRepository, CategoryRepository categoryRepository,
@@ -159,10 +165,18 @@ public class OwnerCatalogService {
         return OwnerProductResponse.from(product, branchStockFor(product.getId()));
     }
 
+    public BulkProductImportResponse importProducts(Long ownerId, BulkProductImportRequest request) {
+        List<OwnerProductResponse> imported = request.products().stream()
+                .map(product -> createProduct(ownerId, product))
+                .toList();
+        return new BulkProductImportResponse(imported.size(), imported);
+    }
+
     public OwnerProductResponse updateProduct(Long ownerId, Long productId, UpdateProductRequest request) {
         Supermarket supermarket = getOwnedSupermarket(ownerId);
         Product product = findOwnedProduct(supermarket, productId);
 
+        Money previousPrice = product.getPrice();
         product.setName(request.name());
         product.setDescription(request.description());
         product.setPrice(Money.of(request.price(), request.currency()));
@@ -170,6 +184,13 @@ public class OwnerCatalogService {
         product.setImageUrl(request.imageUrl());
         product.setActive(request.active());
         product = productRepository.save(product);
+
+        if (userNotificationService != null && product.getPrice().getCurrencyCode().equals(previousPrice.getCurrencyCode())
+                && product.getPrice().getAmount().compareTo(previousPrice.getAmount()) < 0) {
+            userNotificationService.notifyProductFollowers(product.getId(), "Price drop",
+                    product.getName() + " is now " + product.getPrice().getCurrencyCode() + " " + product.getPrice().getAmount(),
+                    productActionUrl(product));
+        }
 
         return OwnerProductResponse.from(product, branchStockFor(product.getId()));
     }
@@ -208,8 +229,15 @@ public class OwnerCatalogService {
                     created.setProduct(product);
                     return created;
                 });
+        int previousQuantity = inventory.getQuantityOnHand();
         inventory.setQuantityOnHand(request.quantityOnHand());
         inventoryRepository.save(inventory);
+
+        if (userNotificationService != null && previousQuantity <= 0 && request.quantityOnHand() > 0) {
+            userNotificationService.notifyProductFollowers(product.getId(), "Back in stock",
+                    product.getName() + " is available again at " + supermarket.getName() + ".",
+                    "/stores/" + branch.getId() + "/products/" + product.getId());
+        }
 
         return OwnerProductResponse.from(product, branchStockFor(product.getId()));
     }
@@ -231,6 +259,13 @@ public class OwnerCatalogService {
             category.setName(trimmed);
             return categoryRepository.save(category);
         });
+    }
+
+    private String productActionUrl(Product product) {
+        return branchRepository.findBySupermarketIdOrderByNameAsc(product.getSupermarket().getId()).stream()
+                .findFirst()
+                .map(branch -> "/stores/" + branch.getId() + "/products/" + product.getId())
+                .orElse("/stores");
     }
 
     private Supermarket getOwnedSupermarket(Long ownerId) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { trackEvent } from '../api/growth'
 import { Link, useNavigate } from 'react-router-dom'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { useUserLocation } from '../context/LocationContext'
@@ -127,6 +128,7 @@ export default function Home() {
   }
 
   async function shareAisleGo() {
+    trackEvent('share', { channel: navigator.share ? 'native' : 'clipboard', referral: false })
     const url = 'https://aislego-frontend.onrender.com/'
     const data = {
       title: 'AisleGo',

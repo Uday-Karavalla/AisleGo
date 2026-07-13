@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { LocationProvider } from './context/LocationContext'
 import { CartProvider } from './context/CartContext'
+import { FavoritesProvider } from './context/FavoritesContext'
 import { Layout } from './components/Layout'
 import { CrossStoreDialog } from './components/CrossStoreDialog'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -28,19 +29,29 @@ import MyStoreOrders from './pages/MyStoreOrders'
 import Terms from './pages/legal/Terms'
 import PrivacyPolicy from './pages/legal/PrivacyPolicy'
 import RefundPolicy from './pages/legal/RefundPolicy'
+import Referrals from './pages/Referrals'
+import Notifications from './pages/Notifications'
+import AdminGrowth from './pages/AdminGrowth'
+import ProductDetail from './pages/ProductDetail'
+import LocalDelivery from './pages/LocalDelivery'
+import { GrowthTracker } from './components/GrowthTracker'
 
 function App() {
   return (
     <AuthProvider>
       <LocationProvider>
-        <CartProvider>
+        <FavoritesProvider>
+          <CartProvider>
           <BrowserRouter>
+            <GrowthTracker />
             <Routes>
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/stores" element={<StoreDiscovery />} />
                 <Route path="/stores/:storeId" element={<Storefront />} />
+                <Route path="/stores/:storeId/products/:productId" element={<ProductDetail />} />
                 <Route path="/category/:category" element={<CategoryBrowse />} />
+                <Route path="/delivery/:city" element={<LocalDelivery />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route
                   path="/checkout"
@@ -78,6 +89,15 @@ function App() {
                   }
                 />
                 <Route path="/register-store" element={<RegisterSupermarketOwner />} />
+                <Route
+                  path="/referrals"
+                  element={
+                    <ProtectedRoute requiredRole="CUSTOMER">
+                      <Referrals />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="/legal/terms" element={<Terms />} />
                 <Route path="/legal/privacy" element={<PrivacyPolicy />} />
                 <Route path="/legal/refunds" element={<RefundPolicy />} />
@@ -113,6 +133,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/admin/growth" element={<ProtectedRoute requiredRole="ADMIN"><AdminGrowth /></ProtectedRoute>} />
                 <Route
                   path="/my-store"
                   element={
@@ -142,7 +163,8 @@ function App() {
           </BrowserRouter>
           {/* Mounted once so the cross-store conflict rule can be enforced from any page. */}
           <CrossStoreDialog />
-        </CartProvider>
+          </CartProvider>
+        </FavoritesProvider>
       </LocationProvider>
     </AuthProvider>
   )

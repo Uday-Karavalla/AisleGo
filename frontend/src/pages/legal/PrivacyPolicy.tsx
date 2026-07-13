@@ -2,7 +2,7 @@ import { LegalLayout } from '../../components/LegalLayout'
 
 export default function PrivacyPolicy() {
   return (
-    <LegalLayout title="Privacy Policy" lastUpdated="9 July 2026">
+    <LegalLayout title="Privacy Policy" lastUpdated="13 July 2026">
       <p>
         This explains what information AisleGo collects when you use the app, why, and who it's shared with. It
         applies to customers and to supermarket owners who register a store.
@@ -15,6 +15,8 @@ export default function PrivacyPolicy() {
         <li><strong>Location</strong> — your approximate location, if you allow it in your browser, so we can show you nearby stores.</li>
         <li><strong>Orders</strong> — what you order, from which store, and your order history.</li>
         <li><strong>Store details</strong> — for supermarket owners, the store name, address, contact number, and the products/stock you list.</li>
+        <li><strong>Usage events</strong> — pages viewed and shopping actions such as searches, adding to cart and beginning checkout, linked to a temporary browser session and to your account when signed in.</li>
+        <li><strong>Preferences</strong> — stores and products you save, referral activity, coupons and notification read status.</li>
         <li>We do not collect or store your card, UPI ID, or bank account details — those go directly to our payment partner, Razorpay.</li>
       </ul>
 
@@ -24,6 +26,7 @@ export default function PrivacyPolicy() {
         <li>To show you supermarkets near you and let you place and track orders.</li>
         <li>To process payments and send you order updates (placed, payment confirmed, delivered, etc.).</li>
         <li>To let a store you ordered from fulfil that order — they see your name, delivery address, and order contents, not your full account details.</li>
+        <li>To improve the checkout funnel, operate referral rewards and notify you when a saved product drops in price or returns to stock.</li>
       </ul>
 
       <h2>3. Who we share it with</h2>
@@ -46,6 +49,7 @@ export default function PrivacyPolicy() {
       <ul>
         <li>You can edit your account details and delivery addresses in the app at any time.</li>
         <li>Location access is optional — you can deny or revoke it in your browser and still browse stores manually.</li>
+        <li>Saving products and sharing referral links are optional. You can remove saved products at any time.</li>
         <li>To request a copy or deletion of your data, email us using the contact below.</li>
       </ul>
 

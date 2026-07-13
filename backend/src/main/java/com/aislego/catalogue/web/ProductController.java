@@ -29,4 +29,9 @@ public class ProductController {
                                          @PageableDefault(size = 20) Pageable pageable) {
         return productCatalogueService.browse(supermarketId, search, category, pageable);
     }
+
+    @GetMapping("/{productId}")
+    public ProductResponse get(@PathVariable Long supermarketId, @PathVariable Long productId) {
+        return productCatalogueService.get(supermarketId, productId);
+    }
 }

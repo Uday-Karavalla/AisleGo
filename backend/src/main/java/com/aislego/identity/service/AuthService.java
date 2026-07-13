@@ -28,6 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.aislego.growth.service.ReferralService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -49,6 +51,9 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final LoginRateLimiter loginRateLimiter;
+
+    @Autowired(required = false)
+    private ReferralService referralService;
 
     public AuthService(UserRepository userRepository, SupermarketRepository supermarketRepository,
                         PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService,
@@ -75,6 +80,9 @@ public class AuthService {
         user.setRoles(Set.of(Role.CUSTOMER));
         issueAndSendVerificationCode(user);
         user = userRepository.save(user);
+        if (referralService != null) {
+            referralService.prepareNewCustomer(user, request.referralCode());
+        }
 
         return issueTokens(user);
     }

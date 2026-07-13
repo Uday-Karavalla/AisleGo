@@ -6,6 +6,8 @@ import type { Store } from '../api/stores'
 import { StoreCard } from '../components/StoreCard'
 import { EmptyState } from '../components/EmptyState'
 import { MapPinIcon, SearchIcon, StoreIcon } from '../components/icons'
+import { useAuth } from '../context/AuthContext'
+import { useFavorites } from '../context/FavoritesContext'
 
 type Status = 'loading' | 'success' | 'error'
 type SortMode = 'recommended' | 'fastest' | 'closest' | 'rating'
@@ -13,12 +15,15 @@ type SortMode = 'recommended' | 'fastest' | 'closest' | 'rating'
 export default function StoreDiscovery() {
   const { location } = useUserLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { supermarketIds: favoriteStoreIds, toggleStore } = useFavorites()
   const [stores, setStores] = useState<Store[]>([])
   const [status, setStatus] = useState<Status>('loading')
   const [retryToken, setRetryToken] = useState(0)
   const [query, setQuery] = useState('')
   const [openOnly, setOpenOnly] = useState(true)
   const [sortMode, setSortMode] = useState<SortMode>('recommended')
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
 
   useEffect(() => {
     if (!location) return
@@ -43,6 +48,7 @@ export default function StoreDiscovery() {
     const normalizedQuery = query.trim().toLowerCase()
     const filtered = stores.filter((store) => {
       if (openOnly && !store.isOpen) return false
+      if (favoritesOnly && (!store.supermarketId || !favoriteStoreIds.has(store.supermarketId))) return false
       if (!normalizedQuery) return true
       return `${store.name} ${store.address} ${(store.categories ?? []).join(' ')}`
         .toLowerCase()
@@ -54,7 +60,7 @@ export default function StoreDiscovery() {
       if (sortMode === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
       return Number(b.isOpen) - Number(a.isOpen) || a.etaMinutes - b.etaMinutes
     })
-  }, [stores, query, openOnly, sortMode])
+  }, [stores, query, openOnly, sortMode, favoritesOnly, favoriteStoreIds])
 
   if (!location) {
     return <Navigate to="/" replace />
@@ -117,6 +123,12 @@ export default function StoreDiscovery() {
             />
             Open now
           </label>
+          {user?.roles.includes('CUSTOMER') && favoriteStoreIds.size > 0 && (
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-bold text-ink-muted">
+              <input type="checkbox" checked={favoritesOnly} onChange={(event) => setFavoritesOnly(event.target.checked)} className="h-4 w-4 accent-brand-600" />
+              Saved
+            </label>
+          )}
         </div>
       )}
 
@@ -160,7 +172,15 @@ export default function StoreDiscovery() {
           {visibleStores.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visibleStores.map((store) => (
-                <StoreCard key={store.id} store={store} onOpen={(selected) => navigate(`/stores/${selected.id}`)} />
+                <StoreCard
+                  key={store.id}
+                  store={store}
+                  onOpen={(selected) => navigate(`/stores/${selected.id}`)}
+                  favorite={Boolean(store.supermarketId && favoriteStoreIds.has(store.supermarketId))}
+                  onToggleFavorite={user?.roles.includes('CUSTOMER') && store.supermarketId
+                    ? () => { void toggleStore(store.supermarketId!) }
+                    : undefined}
+                />
               ))}
             </div>
           ) : (

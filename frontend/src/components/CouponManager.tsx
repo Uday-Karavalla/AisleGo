@@ -15,6 +15,9 @@ interface CouponDraft {
   discountValue: string
   expiresAt: string
   active: boolean
+  firstOrderOnly: boolean
+  maxRedemptions: string
+  perUserLimit: string
 }
 
 const EMPTY_DRAFT: CouponDraft = {
@@ -23,6 +26,9 @@ const EMPTY_DRAFT: CouponDraft = {
   discountValue: '',
   expiresAt: '',
   active: true,
+  firstOrderOnly: false,
+  maxRedemptions: '',
+  perUserLimit: '1',
 }
 
 function toLocalDateTime(value: string | null): string {
@@ -39,6 +45,9 @@ function toDraft(coupon: Coupon): CouponDraft {
     discountValue: String(coupon.discountType === 'PERCENTAGE' ? coupon.percentOff : coupon.amountOff),
     expiresAt: toLocalDateTime(coupon.expiresAt),
     active: coupon.active,
+    firstOrderOnly: coupon.firstOrderOnly,
+    maxRedemptions: coupon.maxRedemptions?.toString() ?? '',
+    perUserLimit: coupon.perUserLimit?.toString() ?? '',
   }
 }
 
@@ -95,6 +104,9 @@ export function CouponManager({ api, title, description }: CouponManagerProps) {
       amountOff: draft.discountType === 'FLAT' ? value : null,
       currency: draft.discountType === 'FLAT' ? 'INR' : null,
       expiresAt: draft.expiresAt ? new Date(draft.expiresAt).toISOString() : null,
+      firstOrderOnly: draft.firstOrderOnly,
+      maxRedemptions: draft.maxRedemptions ? Number(draft.maxRedemptions) : null,
+      perUserLimit: draft.perUserLimit ? Number(draft.perUserLimit) : null,
     }
   }
 
@@ -229,6 +241,38 @@ export function CouponManager({ api, title, description }: CouponManagerProps) {
               onChange={(event) => setDraft((current) => ({ ...current, expiresAt: event.target.value }))}
             />
           </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
+              Total uses (optional)
+              <input
+                className="input-field font-normal"
+                type="number"
+                min="1"
+                value={draft.maxRedemptions}
+                onChange={(event) => setDraft((current) => ({ ...current, maxRedemptions: event.target.value }))}
+                placeholder="Unlimited"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
+              Uses per shopper
+              <input
+                className="input-field font-normal"
+                type="number"
+                min="1"
+                value={draft.perUserLimit}
+                onChange={(event) => setDraft((current) => ({ ...current, perUserLimit: event.target.value }))}
+                placeholder="Unlimited"
+              />
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-ink-muted">
+            <input
+              type="checkbox"
+              checked={draft.firstOrderOnly}
+              onChange={(event) => setDraft((current) => ({ ...current, firstOrderOnly: event.target.checked }))}
+            />
+            New shoppers only (first order)
+          </label>
           {editingId !== null && (
             <label className="flex items-center gap-2 text-xs text-ink-muted">
               <input
@@ -274,6 +318,11 @@ export function CouponManager({ api, title, description }: CouponManagerProps) {
             <p className="text-sm text-ink-muted">{discountLabel(coupon)}</p>
             <p className="text-xs text-ink-faint">
               {coupon.expiresAt ? `Expires ${new Date(coupon.expiresAt).toLocaleString()}` : 'No expiry'}
+            </p>
+            <p className="text-xs text-ink-faint">
+              {coupon.firstOrderOnly ? 'First order only · ' : ''}
+              {coupon.perUserLimit ? `${coupon.perUserLimit} per shopper` : 'Reusable'}
+              {coupon.maxRedemptions ? ` · ${coupon.maxRedemptions} total uses` : ''}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">

@@ -3,6 +3,7 @@ package com.aislego.catalogue.dto;
 import com.aislego.catalogue.domain.DiscountType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -20,6 +21,13 @@ public record CreateCouponRequest(
         Integer percentOff,
         BigDecimal amountOff,
         String currency,
-        Instant expiresAt
+        Instant expiresAt,
+        boolean firstOrderOnly,
+        @Min(1) Integer maxRedemptions,
+        @Min(1) Integer perUserLimit
 ) {
+    public CreateCouponRequest(String code, DiscountType discountType, Integer percentOff,
+                               BigDecimal amountOff, String currency, Instant expiresAt) {
+        this(code, discountType, percentOff, amountOff, currency, expiresAt, false, null, null);
+    }
 }

@@ -41,6 +41,9 @@ describe('CouponManager', () => {
         amountOff: null,
         currency: null,
         expiresAt: null,
+        firstOrderOnly: false,
+        maxRedemptions: null,
+        perUserLimit: 1,
       })
     })
     expect(await screen.findByText('15% off')).toBeInTheDocument()

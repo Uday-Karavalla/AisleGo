@@ -14,6 +14,8 @@ import com.aislego.orders.domain.OrderStatus;
 import com.aislego.orders.dto.OwnerOrderResponse;
 import com.aislego.orders.repository.OrderRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.aislego.growth.service.UserNotificationService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -50,6 +52,8 @@ public class OwnerOrderService {
     private final OrderRepository orderRepository;
     private final InventoryReservationService inventoryReservationService;
     private final NotificationService notificationService;
+    @Autowired(required = false)
+    private UserNotificationService userNotificationService;
 
     public OwnerOrderService(SupermarketRepository supermarketRepository, OrderRepository orderRepository,
                               InventoryReservationService inventoryReservationService,
@@ -103,6 +107,9 @@ public class OwnerOrderService {
         User user = order.getUser();
         notificationService.send(new Notification(user.getFullName(), user.getEmail(), user.getPhone(),
                 "Order update", message));
+        if (userNotificationService != null) {
+            userNotificationService.create(user.getId(), "Order update", message, "/orders/" + order.getId());
+        }
     }
 
     private List<StockReservationLine> toReservationLines(Order order) {

@@ -42,6 +42,17 @@ export interface UpdateCartItemRequest {
  * represented locally because the current backend response does not carry UI-only product
  * details such as unit, image URL, branch name, or substitution preference. */
 export interface CartCouponState {
+  id?: number
+  supermarketId?: number | null
+  items?: Array<{
+    id: number
+    productId: number
+    productName: string
+    quantity: number
+    unitPrice: number
+    lineTotal: number
+    currency: string
+  }>
   subtotal: number
   deliveryFee: number
   couponCode: string | null

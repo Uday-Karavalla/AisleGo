@@ -21,6 +21,7 @@ export interface RegisterPayload {
   password: string
   fullName: string
   phone: string
+  referralCode?: string
 }
 
 export interface RegisterSupermarketOwnerPayload {

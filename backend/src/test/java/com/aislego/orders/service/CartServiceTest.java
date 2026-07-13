@@ -126,8 +126,8 @@ class CartServiceTest {
     void applyCouponSetsTheNormalizedCodeOnTheCartWhenValid() {
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingCart));
         Coupon coupon = flatCoupon("SAVE10", BigDecimal.TEN);
-        when(couponService.resolveApplicableCoupon("save10", 1L)).thenReturn(coupon);
-        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L)).thenReturn(Optional.of(coupon));
+        when(couponService.resolveApplicableCoupon("save10", 1L, USER_ID)).thenReturn(coupon);
+        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L, USER_ID)).thenReturn(Optional.of(coupon));
         when(couponService.calculateDiscount(coupon, Money.zero("INR"))).thenReturn(Money.zero("INR"));
         when(cartRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -140,7 +140,7 @@ class CartServiceTest {
     @Test
     void applyCouponRejectsAnInvalidCodeAndLeavesTheCartUnchanged() {
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingCart));
-        when(couponService.resolveApplicableCoupon("BOGUS", 1L))
+        when(couponService.resolveApplicableCoupon("BOGUS", 1L, USER_ID))
                 .thenThrow(new BadRequestException("This coupon has expired"));
 
         assertThatThrownBy(() -> cartService.applyCoupon(USER_ID, "BOGUS"))
@@ -153,7 +153,7 @@ class CartServiceTest {
     void viewCartSilentlyClearsANoLongerValidCouponInsteadOfErroring() {
         existingCart.setCouponCode("EXPIRED10");
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingCart));
-        when(couponService.tryResolveApplicableCoupon("EXPIRED10", 1L)).thenReturn(Optional.empty());
+        when(couponService.tryResolveApplicableCoupon("EXPIRED10", 1L, USER_ID)).thenReturn(Optional.empty());
         when(cartRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = cartService.viewCart(USER_ID);
@@ -174,7 +174,7 @@ class CartServiceTest {
 
         Coupon coupon = flatCoupon("SAVE10", BigDecimal.TEN);
         when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingCart));
-        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L)).thenReturn(Optional.of(coupon));
+        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L, USER_ID)).thenReturn(Optional.of(coupon));
         when(couponService.calculateDiscount(coupon, Money.of(BigDecimal.valueOf(100), "INR")))
                 .thenReturn(Money.of(BigDecimal.TEN, "INR"));
 

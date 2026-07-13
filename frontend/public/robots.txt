@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://aislego-frontend.onrender.com/sitemap.xml
+Sitemap: https://aislego-backend.onrender.com/api/seo/sitemap.xml

@@ -78,6 +78,14 @@ export interface UpdateOwnerProduct {
   active: boolean
 }
 
+export interface OwnerInsights {
+  ordersLast30Days: number
+  revenueLast30Days: number
+  averageOrderValue: number
+  lowStockItems: number
+  topProducts: Array<{ name: string; unitsSold: number }>
+}
+
 /** One item line of an owner-visible order — matches the backend's `OrderItemResponse`. */
 export interface OwnerOrderItem {
   productId: number
@@ -110,6 +118,7 @@ export interface OwnerOrder {
 
 export const supermarketOwnerApi = {
   mine: () => api.get<MySupermarket>('/supermarkets/mine'),
+  insights: () => api.get<OwnerInsights>('/supermarkets/mine/insights'),
 
   listBranches: () => api.get<OwnerBranch[]>('/supermarkets/mine/branches'),
   createBranch: (branch: NewOwnerBranch) => api.post<OwnerBranch>('/supermarkets/mine/branches', branch),
@@ -119,6 +128,7 @@ export const supermarketOwnerApi = {
 
   listProducts: () => api.get<OwnerProduct[]>('/supermarkets/mine/products'),
   createProduct: (product: NewOwnerProduct) => api.post<OwnerProduct>('/supermarkets/mine/products', product),
+  importProducts: (products: NewOwnerProduct[]) => api.post<{ importedCount: number; products: OwnerProduct[] }>('/supermarkets/mine/products/bulk', { products }),
   updateProduct: (productId: number, product: UpdateOwnerProduct) =>
     api.patch<OwnerProduct>(`/supermarkets/mine/products/${productId}`, product),
   updateInventory: (productId: number, branchId: number, quantityOnHand: number) =>

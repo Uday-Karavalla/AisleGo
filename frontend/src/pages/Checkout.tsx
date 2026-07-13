@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { trackEvent } from '../api/growth'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -102,6 +103,7 @@ export default function Checkout() {
   }
 
   function finishCheckout(orderId: number) {
+    trackEvent('purchase', { orderId, value: cart.total, coupon: cart.couponCode })
     sessionStorage.removeItem(IDEMPOTENCY_STORAGE_KEY)
     setLastOrderId(String(orderId))
     clearCart()
@@ -133,6 +135,7 @@ export default function Checkout() {
     setErrorMessage(null)
 
     try {
+      trackEvent('begin_checkout', { value: cart.total, fulfilmentType, coupon: cart.couponCode })
       const { order, payment } = await ordersApi.checkout(
         branchId,
         idempotencyKey,
