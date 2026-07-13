@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supermarketOwnerApi } from '../api/supermarket'
+import { storesApi } from '../api/stores'
 import type {
   NewOwnerBranch,
   NewOwnerProduct,
@@ -14,6 +15,8 @@ import type {
 import { EmptyState } from '../components/EmptyState'
 import { StoreIcon } from '../components/icons'
 import { Dialog } from '../components/Dialog'
+import { CouponManager } from '../components/CouponManager'
+import { ownerCouponApi } from '../api/coupons'
 
 type Status = 'loading' | 'success' | 'error'
 
@@ -96,6 +99,7 @@ export default function MyStoreCatalogue() {
   const [editBranchSubmitting, setEditBranchSubmitting] = useState(false)
   const [deleteBranchTarget, setDeleteBranchTarget] = useState<OwnerBranch | null>(null)
   const [deletingBranch, setDeletingBranch] = useState(false)
+  const [geocodingBranch, setGeocodingBranch] = useState(false)
 
   const [productDraft, setProductDraft] = useState(EMPTY_PRODUCT_DRAFT)
   const [productBranchId, setProductBranchId] = useState<number | null>(null)
@@ -137,6 +141,35 @@ export default function MyStoreCatalogue() {
       setMessage(error instanceof Error ? error.message : 'Could not create the branch.')
     } finally {
       setBranchSubmitting(false)
+    }
+  }
+
+  /** Resolves the typed address/city into real coordinates via the routing provider's
+   *  geocoder, instead of leaving owners to type latitude/longitude by hand - manual entry
+   *  is how a branch ends up thousands of km from where it actually is, invisible to every
+   *  "nearby stores" search that has nothing to do with the store's real location. */
+  async function handleLocateAddress(
+    draft: NewOwnerBranch,
+    setDraft: (updater: (d: NewOwnerBranch) => NewOwnerBranch) => void,
+  ) {
+    const query = [draft.addressLine, draft.city].filter((part) => part.trim()).join(', ')
+    if (!query) {
+      setMessage('Enter an address and city first, then locate coordinates.')
+      return
+    }
+    setMessage(null)
+    setGeocodingBranch(true)
+    try {
+      const coords = await storesApi.geocode(query)
+      if (!coords) {
+        setMessage("Couldn't find that address — double-check it or enter coordinates manually.")
+        return
+      }
+      setDraft((d) => ({ ...d, latitude: coords.lat, longitude: coords.lng }))
+    } catch {
+      setMessage("Couldn't look up that address right now — try again or enter coordinates manually.")
+    } finally {
+      setGeocodingBranch(false)
     }
   }
 
@@ -344,6 +377,14 @@ export default function MyStoreCatalogue() {
           value={draft.city}
           onChange={(e) => setDraft((d) => ({ ...d, city: e.target.value }))}
         />
+        <button
+          type="button"
+          className="btn-secondary self-start px-3 py-1.5 text-xs"
+          onClick={() => handleLocateAddress(draft, setDraft)}
+          disabled={geocodingBranch}
+        >
+          {geocodingBranch ? 'Locating…' : 'Use address to find coordinates'}
+        </button>
         <div className="flex gap-2">
           <input
             className="input-field"
@@ -364,6 +405,10 @@ export default function MyStoreCatalogue() {
             required
           />
         </div>
+        <p className="text-xs text-ink-muted">
+          Type the address and city above, then tap "Use address to find coordinates" — accurate coordinates are
+          what let customers find your store nearby. Manually-typed coordinates are easy to get wrong.
+        </p>
         <div className="flex gap-2">
           <input
             className="input-field"
@@ -493,6 +538,12 @@ export default function MyStoreCatalogue() {
           </form>
         )}
       </section>
+
+      <CouponManager
+        api={ownerCouponApi}
+        title="Store coupons"
+        description="Create codes that apply only to purchases from your supermarket."
+      />
 
       {branches.length > 0 && (
         <section className="card flex flex-col gap-3">

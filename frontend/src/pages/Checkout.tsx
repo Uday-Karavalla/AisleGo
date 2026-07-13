@@ -84,7 +84,7 @@ export default function Checkout() {
           <p className="text-sm text-ink-muted">
             To keep orders genuine, you need to verify your email before placing one.
           </p>
-          <Link to="/verify-email" className="btn-primary">
+          <Link to="/verify-email" state={{ returnTo: '/checkout' }} className="btn-primary">
             Verify email
           </Link>
         </div>
@@ -108,13 +108,20 @@ export default function Checkout() {
     navigate(`/orders/${orderId}`)
   }
 
-  // NOTE: `fulfilmentType`/`scheduledFor`/`couponCode`/`paymentMethod` are still UI-only
-  // state — the backend doesn't yet accept any of these, so they are intentionally not
-  // sent to the API. `addressId` (below) is now real: it's snapshotted onto the order.
+  // Payment method remains display-only; fulfilment and coupon pricing are server-validated.
   async function handlePlaceOrder() {
     if (!cart.storeId) return
     if (fulfilmentType !== 'PICKUP' && !selectedAddressId) {
       setErrorMessage('Please select or add a delivery address.')
+      return
+    }
+    if (fulfilmentType === 'SCHEDULED' && !scheduledFor) {
+      setErrorMessage('Please choose a delivery time.')
+      return
+    }
+    const scheduledForInstant = fulfilmentType === 'SCHEDULED' ? new Date(scheduledFor) : null
+    if (scheduledForInstant && (Number.isNaN(scheduledForInstant.getTime()) || scheduledForInstant <= new Date())) {
+      setErrorMessage('Please choose a future delivery time.')
       return
     }
 
@@ -126,7 +133,13 @@ export default function Checkout() {
     setErrorMessage(null)
 
     try {
-      const { order, payment } = await ordersApi.checkout(branchId, idempotencyKey, addressId)
+      const { order, payment } = await ordersApi.checkout(
+        branchId,
+        idempotencyKey,
+        fulfilmentType,
+        addressId,
+        scheduledForInstant?.toISOString(),
+      )
 
       if (!payment.requiresClientAction) {
         // Mock provider: nothing to collect from the shopper, verify immediately.
@@ -182,7 +195,12 @@ export default function Checkout() {
     } catch (error) {
       if (error instanceof ApiError && error.isNetworkError) {
         // No backend yet: simulate the order locally so tracking still works end to end.
-        const mockOrder = createMockOrder({ branchId, cart })
+        const mockOrder = createMockOrder({
+          branchId,
+          cart,
+          fulfilmentType,
+          scheduledFor: scheduledForInstant?.toISOString(),
+        })
         finishCheckout(mockOrder.id)
         return
       }
@@ -356,7 +374,7 @@ export default function Checkout() {
         </div>
         <div className="flex justify-between text-sm text-ink-muted">
           <span>Delivery fee</span>
-          <span>₹{cart.deliveryFee.toFixed(0)}</span>
+          <span>₹{(fulfilmentType === 'PICKUP' ? 0 : cart.deliveryFee).toFixed(0)}</span>
         </div>
         {cart.discount > 0 && (
           <div className="flex justify-between text-sm text-brand-700">
@@ -366,7 +384,9 @@ export default function Checkout() {
         )}
         <div className="flex justify-between border-t border-black/5 pt-2 text-base font-bold text-ink">
           <span>Total</span>
-          <span>₹{cart.total.toFixed(0)}</span>
+          <span>
+            ₹{(cart.subtotal - cart.discount + (fulfilmentType === 'PICKUP' ? 0 : cart.deliveryFee)).toFixed(0)}
+          </span>
         </div>
       </section>
 

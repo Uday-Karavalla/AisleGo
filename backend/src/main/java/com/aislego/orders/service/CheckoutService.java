@@ -3,7 +3,9 @@ package com.aislego.orders.service;
 import com.aislego.addresses.domain.Address;
 import com.aislego.addresses.repository.AddressRepository;
 import com.aislego.catalogue.domain.Branch;
+import com.aislego.catalogue.domain.Coupon;
 import com.aislego.catalogue.repository.BranchRepository;
+import com.aislego.catalogue.service.CouponService;
 import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.ConflictException;
 import com.aislego.common.exception.ForbiddenException;
@@ -17,8 +19,10 @@ import com.aislego.notifications.Notification;
 import com.aislego.notifications.NotificationService;
 import com.aislego.orders.domain.Cart;
 import com.aislego.orders.domain.CartItem;
+import com.aislego.orders.domain.FulfilmentType;
 import com.aislego.orders.domain.Order;
 import com.aislego.orders.domain.OrderItem;
+import com.aislego.orders.domain.OrderPricing;
 import com.aislego.orders.domain.OrderStatus;
 import com.aislego.orders.dto.CheckoutRequest;
 import com.aislego.orders.dto.CheckoutResponse;
@@ -38,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,6 +81,7 @@ public class CheckoutService {
     private final PaymentService paymentService;
     private final PaymentRepository paymentRepository;
     private final NotificationService notificationService;
+    private final CouponService couponService;
     private final String provider;
 
     public CheckoutService(CartRepository cartRepository, OrderRepository orderRepository,
@@ -83,7 +89,7 @@ public class CheckoutService {
                             AddressRepository addressRepository,
                             InventoryReservationService inventoryReservationService,
                             PaymentService paymentService, PaymentRepository paymentRepository,
-                            NotificationService notificationService,
+                            NotificationService notificationService, CouponService couponService,
                             @Value("${aislego.payments.provider}") String provider) {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
@@ -94,6 +100,7 @@ public class CheckoutService {
         this.paymentService = paymentService;
         this.paymentRepository = paymentRepository;
         this.notificationService = notificationService;
+        this.couponService = couponService;
         this.provider = provider.toUpperCase();
     }
 
@@ -125,17 +132,19 @@ public class CheckoutService {
                     "The selected branch does not belong to the supermarket your cart's items are from");
         }
 
+        validateFulfilment(request);
+        String deliveryAddress = resolveDeliveryAddress(userId, request);
+
         inventoryReservationService.reserveForOrder(branch.getId(), toReservationLines(cart));
 
-        String deliveryAddress = resolveDeliveryAddress(userId, request.addressId());
-
-        Order order = buildOrder(userId, idempotencyKey, cart, branch, deliveryAddress);
+        Order order = buildOrder(userId, idempotencyKey, cart, branch, deliveryAddress, request);
         order = orderRepository.save(order);
 
         PaymentIntentResponse paymentResponse = createPayment(order);
 
         cart.getItems().clear();
         cart.setSupermarketId(null);
+        cart.setCouponCode(null);
         cartRepository.save(cart);
 
         notifyOrder(order, "Order placed",
@@ -252,9 +261,26 @@ public class CheckoutService {
      *  order - null for a pickup order or when no address was selected. Re-validates the
      *  address belongs to this customer rather than trusting the id, same pattern as every
      *  other owner-scoped lookup in this codebase. */
-    private String resolveDeliveryAddress(Long userId, Long addressId) {
-        if (addressId == null) {
+    private void validateFulfilment(CheckoutRequest request) {
+        if (request.fulfilmentType() == FulfilmentType.SCHEDULED) {
+            if (request.scheduledFor() == null) {
+                throw new BadRequestException("Please choose a delivery time for a scheduled order");
+            }
+            if (!request.scheduledFor().isAfter(Instant.now())) {
+                throw new BadRequestException("Scheduled delivery time must be in the future");
+            }
+        } else if (request.scheduledFor() != null) {
+            throw new BadRequestException("A delivery time can only be set for a scheduled order");
+        }
+    }
+
+    private String resolveDeliveryAddress(Long userId, CheckoutRequest request) {
+        if (request.fulfilmentType() == FulfilmentType.PICKUP) {
             return null;
+        }
+        Long addressId = request.addressId();
+        if (addressId == null) {
+            throw new BadRequestException("Please select a delivery address");
         }
         Address address = addressRepository.findByIdAndUserId(addressId, userId)
                 .orElseThrow(() -> new NotFoundException("Address " + addressId + " was not found"));
@@ -269,17 +295,20 @@ public class CheckoutService {
         return formatted.toString();
     }
 
-    private Order buildOrder(Long userId, String idempotencyKey, Cart cart, Branch branch, String deliveryAddress) {
+    private Order buildOrder(Long userId, String idempotencyKey, Cart cart, Branch branch, String deliveryAddress,
+                             CheckoutRequest request) {
         Order order = new Order();
         order.setUser(userRepository.getReferenceById(userId));
         order.setSupermarket(branch.getSupermarket());
         order.setBranch(branch);
         order.setIdempotencyKey(idempotencyKey);
         order.setDeliveryAddress(deliveryAddress);
+        order.setFulfilmentType(request.fulfilmentType());
+        order.setScheduledFor(request.scheduledFor());
         order.setStatus(OrderStatus.PLACED);
 
         String currency = cart.getItems().get(0).getUnitPrice().getCurrencyCode();
-        Money total = Money.zero(currency);
+        Money subtotal = Money.zero(currency);
 
         for (CartItem cartItem : cart.getItems()) {
             Money lineTotal = cartItem.getUnitPrice().multiply(cartItem.getQuantity());
@@ -293,9 +322,18 @@ public class CheckoutService {
             orderItem.setLineTotal(lineTotal);
             order.getItems().add(orderItem);
 
-            total = total.add(lineTotal);
+            subtotal = subtotal.add(lineTotal);
         }
-        order.setTotalAmount(total);
+
+        Coupon coupon = cart.getCouponCode() == null ? null
+                : couponService.tryResolveApplicableCoupon(cart.getCouponCode(), cart.getSupermarketId()).orElse(null);
+        Money discount = couponService.calculateDiscount(coupon, subtotal);
+        Money deliveryFee = OrderPricing.deliveryFee(currency, !cart.getItems().isEmpty(), request.fulfilmentType());
+
+        order.setCouponCode(coupon == null ? null : coupon.getCode());
+        order.setDiscountAmount(discount.getAmount());
+        order.setDeliveryFee(deliveryFee.getAmount());
+        order.setTotalAmount(subtotal.subtract(discount).add(deliveryFee));
         return order;
     }
 }

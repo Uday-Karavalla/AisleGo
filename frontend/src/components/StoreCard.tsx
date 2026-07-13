@@ -12,8 +12,9 @@ export function StoreCard({ store, onOpen }: StoreCardProps) {
       type="button"
       onClick={() => onOpen(store)}
       disabled={!store.isOpen}
-      className="card flex w-full items-center gap-4 text-left transition active:scale-[0.99] disabled:opacity-60"
+      className="card group relative flex w-full items-center gap-4 overflow-hidden border border-transparent text-left transition hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-pop active:scale-[0.99] disabled:opacity-60 disabled:hover:translate-y-0"
     >
+      <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-400 via-brand-600 to-brand-800 opacity-0 transition group-hover:opacity-100" />
       <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
         {store.logoUrl ? (
           <img src={store.logoUrl} alt={`${store.name} logo`} className="h-full w-full rounded-2xl object-cover" />
@@ -46,7 +47,7 @@ export function StoreCard({ store, onOpen }: StoreCardProps) {
             <MapPinIcon className="h-3.5 w-3.5" />
             {store.distanceKm.toFixed(1)} km
           </span>
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-1 font-semibold text-brand-800">
             <ClockIcon className="h-3.5 w-3.5" />
             {store.isOpen ? `${store.etaMinutes} min` : 'Opens later'}
           </span>
@@ -57,7 +58,11 @@ export function StoreCard({ store, onOpen }: StoreCardProps) {
         )}
       </div>
 
-      {store.isOpen && <ChevronRightIcon className="h-5 w-5 shrink-0 text-ink-faint" />}
+      {store.isOpen && (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700 transition group-hover:bg-brand-600 group-hover:text-white">
+          <ChevronRightIcon className="h-5 w-5" />
+        </span>
+      )}
     </button>
   )
 }

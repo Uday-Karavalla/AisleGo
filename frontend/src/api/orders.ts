@@ -37,10 +37,7 @@ export const ORDER_STAGE_LABELS: Record<OrderStage, string> = {
 
 export type FulfilmentType = 'IMMEDIATE' | 'SCHEDULED' | 'PICKUP'
 
-/**
- * UI-only selector today: the backend's `CheckoutRequest` is just `{ branchId }` and
- * does not yet accept a payment method, so this is not sent to the API.
- */
+/** UI-only payment selector; the provider is still chosen by backend configuration. */
 export type PaymentMethod = 'CARD' | 'UPI' | 'COD'
 
 /** Matches `OrderResponse.java`'s `items[]` shape exactly. */
@@ -58,8 +55,14 @@ export interface Order {
   supermarketId: number
   branchId: number
   status: OrderStatus
+  fulfilmentType: FulfilmentType
+  scheduledFor: string | null
+  subtotal: number
+  deliveryFee: number
   totalAmount: number
   currency: string
+  couponCode: string | null
+  discountAmount: number
   items: OrderItem[]
   deliveryAddress: string | null
   createdAt: string
@@ -96,8 +99,13 @@ export const ordersApi = {
    * `idempotencyKey` must be generated client-side and reused across retries of the
    * same checkout attempt.
    */
-  checkout: (branchId: number, idempotencyKey: string, addressId?: number) =>
-    api.post<CheckoutResponse>('/checkout', { branchId, addressId }, { idempotencyKey }),
+  checkout: (
+    branchId: number,
+    idempotencyKey: string,
+    fulfilmentType: FulfilmentType,
+    addressId?: number,
+    scheduledFor?: string,
+  ) => api.post<CheckoutResponse>('/checkout', { branchId, fulfilmentType, addressId, scheduledFor }, { idempotencyKey }),
 
   /** `POST /api/checkout/{orderId}/payment/verify` — idempotent; returns the updated order. */
   verifyPayment: (orderId: number, payload: PaymentVerificationPayload, idempotencyKey: string) =>

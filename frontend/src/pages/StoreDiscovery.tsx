@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useUserLocation } from '../context/LocationContext'
 import { storesApi } from '../api/stores'
 import type { Store } from '../api/stores'
 import { StoreCard } from '../components/StoreCard'
 import { EmptyState } from '../components/EmptyState'
-import { StoreIcon } from '../components/icons'
+import { MapPinIcon, SearchIcon, StoreIcon } from '../components/icons'
 
 type Status = 'loading' | 'success' | 'error'
+type SortMode = 'recommended' | 'fastest' | 'closest' | 'rating'
 
 export default function StoreDiscovery() {
   const { location } = useUserLocation()
@@ -15,6 +16,9 @@ export default function StoreDiscovery() {
   const [stores, setStores] = useState<Store[]>([])
   const [status, setStatus] = useState<Status>('loading')
   const [retryToken, setRetryToken] = useState(0)
+  const [query, setQuery] = useState('')
+  const [openOnly, setOpenOnly] = useState(true)
+  const [sortMode, setSortMode] = useState<SortMode>('recommended')
 
   useEffect(() => {
     if (!location) return
@@ -35,16 +39,86 @@ export default function StoreDiscovery() {
     }
   }, [location, retryToken])
 
+  const visibleStores = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    const filtered = stores.filter((store) => {
+      if (openOnly && !store.isOpen) return false
+      if (!normalizedQuery) return true
+      return `${store.name} ${store.address} ${(store.categories ?? []).join(' ')}`
+        .toLowerCase()
+        .includes(normalizedQuery)
+    })
+    return [...filtered].sort((a, b) => {
+      if (sortMode === 'fastest') return a.etaMinutes - b.etaMinutes
+      if (sortMode === 'closest') return a.distanceKm - b.distanceKm
+      if (sortMode === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
+      return Number(b.isOpen) - Number(a.isOpen) || a.etaMinutes - b.etaMinutes
+    })
+  }, [stores, query, openOnly, sortMode])
+
   if (!location) {
     return <Navigate to="/" replace />
   }
 
   return (
-    <div className="page-wide flex flex-col gap-4 px-5 py-6">
-      <div>
-        <h1 className="text-xl font-extrabold text-ink">Supermarkets near you</h1>
-        <p className="text-sm text-ink-muted">Delivering to {location.label}</p>
+    <div className="page-wide flex flex-col gap-5 px-5 py-6 md:py-9">
+      <div className="rounded-3xl bg-gradient-to-r from-brand-800 to-brand-600 p-5 text-white shadow-card md:p-7">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-200">Shop nearby</p>
+            <h1 className="mt-1 text-2xl font-extrabold md:text-3xl">Supermarkets around you</h1>
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
+              <MapPinIcon className="h-4 w-4" /> {location.label}
+            </p>
+          </div>
+          <Link to="/" className="w-fit rounded-xl bg-white/10 px-3 py-2 text-xs font-bold backdrop-blur hover:bg-white/20">
+            Change location
+          </Link>
+        </div>
       </div>
+
+      {status === 'success' && stores.length > 0 && (
+        <div className="card flex flex-col gap-3 md:flex-row md:items-center">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Search supermarkets</span>
+            <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="input-field py-3 pl-10"
+              placeholder="Search stores or categories"
+            />
+          </label>
+          <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+            {([
+              ['recommended', 'Recommended'],
+              ['fastest', 'Fastest'],
+              ['closest', 'Closest'],
+              ['rating', 'Top rated'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSortMode(value)}
+                className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold transition ${
+                  sortMode === value ? 'bg-brand-600 text-white' : 'bg-black/5 text-ink-muted hover:bg-black/10'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-bold text-ink-muted">
+            <input
+              type="checkbox"
+              checked={openOnly}
+              onChange={(event) => setOpenOnly(event.target.checked)}
+              className="h-4 w-4 accent-brand-600"
+            />
+            Open now
+          </label>
+        </div>
+      )}
 
       {status === 'loading' && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading nearby supermarkets">
@@ -76,11 +150,29 @@ export default function StoreDiscovery() {
       )}
 
       {status === 'success' && stores.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {stores.map((store) => (
-            <StoreCard key={store.id} store={store} onOpen={(selected) => navigate(`/stores/${selected.id}`)} />
-          ))}
-        </div>
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-ink-muted">
+              {visibleStores.length} {visibleStores.length === 1 ? 'store' : 'stores'} found
+            </p>
+            <p className="hidden text-xs text-ink-faint sm:block">Delivery and pickup options shown at checkout</p>
+          </div>
+          {visibleStores.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleStores.map((store) => (
+                <StoreCard key={store.id} store={store} onOpen={(selected) => navigate(`/stores/${selected.id}`)} />
+              ))}
+            </div>
+          ) : (
+            <div className="card py-10 text-center">
+              <p className="font-bold text-ink">No stores match those filters</p>
+              <p className="mt-1 text-sm text-ink-muted">Try another search or include stores that are currently closed.</p>
+              <button type="button" className="btn-ghost mt-3 text-brand-700" onClick={() => { setQuery(''); setOpenOnly(false) }}>
+                Clear filters
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -75,11 +75,21 @@ export default function Orders() {
                   {ORDER_STAGE_LABELS[order.status]}
                 </span>
               </div>
+              <p className="text-sm text-ink-muted">
+                {order.fulfilmentType === 'PICKUP'
+                  ? 'Store pickup'
+                  : order.fulfilmentType === 'SCHEDULED' && order.scheduledFor
+                    ? `Scheduled ${new Date(order.scheduledFor).toLocaleString()}`
+                    : 'ASAP delivery'}
+              </p>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-ink-muted">{new Date(order.createdAt).toLocaleString()}</span>
-                <span className="font-bold text-ink">
-                  {order.currency} {order.totalAmount.toFixed(2)}
-                </span>
+                <div className="text-right">
+                  {order.discountAmount > 0 && (
+                    <p className="text-xs text-brand-700">Saved {order.currency} {order.discountAmount.toFixed(2)}</p>
+                  )}
+                  <p className="font-bold text-ink">{order.currency} {order.totalAmount.toFixed(2)}</p>
+                </div>
               </div>
             </Link>
           ))}

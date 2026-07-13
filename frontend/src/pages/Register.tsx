@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../api/client'
 import type { RegisterPayload } from '../api/auth'
+import { safeReturnPath } from '../utils/authRedirect'
 
 const EMPTY_FORM: RegisterPayload = {
   email: '',
@@ -14,7 +15,9 @@ const EMPTY_FORM: RegisterPayload = {
 
 export default function Register() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { register } = useAuth()
+  const returnTo = safeReturnPath(location.state)
   const [form, setForm] = useState<RegisterPayload>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -29,7 +32,8 @@ export default function Register() {
     setErrorMessage(null)
     try {
       await register(form)
-      navigate('/stores')
+      if (returnTo) navigate(returnTo, { replace: true })
+      else navigate('/stores')
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setErrorMessage('An account with that email already exists.')
@@ -45,7 +49,11 @@ export default function Register() {
     <div className="page-narrow flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Create your account</h1>
-        <p className="mt-1 text-sm text-ink-muted">Sign up to order from supermarkets near you.</p>
+        <p className="mt-1 text-sm text-ink-muted">
+          {returnTo === '/checkout'
+            ? 'Create your account to continue with the cart you already built.'
+            : 'Sign up to order from supermarkets near you.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-3">
@@ -111,7 +119,7 @@ export default function Register() {
 
       <p className="text-center text-sm text-ink-muted">
         Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-brand-700">
+        <Link to="/login" state={returnTo ? { returnTo } : undefined} className="font-semibold text-brand-700">
           Sign in
         </Link>
       </p>

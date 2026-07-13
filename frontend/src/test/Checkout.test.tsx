@@ -97,8 +97,14 @@ function baseOrder(overrides: Partial<Order> = {}): Order {
     supermarketId: 1,
     branchId: 5,
     status: 'PLACED',
+    fulfilmentType: 'IMMEDIATE',
+    scheduledFor: null,
+    subtotal: 100,
+    deliveryFee: 25,
     totalAmount: 125,
     currency: 'INR',
+    couponCode: null,
+    discountAmount: 0,
     items: [],
     deliveryAddress: null,
     createdAt: new Date().toISOString(),
@@ -146,9 +152,42 @@ describe('Checkout — mock payment provider (no client action)', () => {
     await user.click(screen.getByRole('button', { name: /pay & place order/i }))
 
     await waitFor(() => expect(ordersApi.verifyPayment).toHaveBeenCalledWith(42, {}, expect.any(String)))
-    expect(ordersApi.checkout).toHaveBeenCalledWith(5, expect.any(String), 1)
+    expect(ordersApi.checkout).toHaveBeenCalledWith(5, expect.any(String), 'IMMEDIATE', 1, undefined)
     expect(mockClearCart).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith('/orders/42')
+  })
+
+  it('removes the delivery fee for pickup and sends the fulfilment choice', async () => {
+    const checkoutResponse: CheckoutResponse = {
+      order: baseOrder({
+        fulfilmentType: 'PICKUP',
+        deliveryFee: 0,
+        totalAmount: 100,
+      }),
+      payment: {
+        provider: 'MOCK',
+        requiresClientAction: false,
+        gatewayOrderId: null,
+        providerKeyId: null,
+        amountMinorUnits: 10000,
+        currency: 'INR',
+      },
+    }
+    vi.mocked(ordersApi.checkout).mockResolvedValue(checkoutResponse)
+    vi.mocked(ordersApi.verifyPayment).mockResolvedValue(
+      baseOrder({ fulfilmentType: 'PICKUP', deliveryFee: 0, totalAmount: 100, status: 'PAYMENT_CONFIRMED' }),
+    )
+
+    const user = await renderCheckoutReadyToSubmit()
+    await user.click(screen.getByRole('button', { name: 'Pickup' }))
+
+    expect(screen.getByText('₹0')).toBeInTheDocument()
+    expect(screen.getAllByText('₹100')).toHaveLength(2)
+
+    await user.click(screen.getByRole('button', { name: /pay & place order/i }))
+    await waitFor(() =>
+      expect(ordersApi.checkout).toHaveBeenCalledWith(5, expect.any(String), 'PICKUP', undefined, undefined),
+    )
   })
 })
 

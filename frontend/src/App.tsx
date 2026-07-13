@@ -21,6 +21,7 @@ import RegisterSupermarketOwner from './pages/RegisterSupermarketOwner'
 import AdminSupermarkets from './pages/AdminSupermarkets'
 import AdminOrders from './pages/AdminOrders'
 import AdminUsers from './pages/AdminUsers'
+import AdminCoupons from './pages/AdminCoupons'
 import MySupermarketStatus from './pages/MySupermarketStatus'
 import MyStoreCatalogue from './pages/MyStoreCatalogue'
 import MyStoreOrders from './pages/MyStoreOrders'
@@ -101,6 +102,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="ADMIN">
                       <AdminUsers />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/coupons"
+                  element={
+                    <ProtectedRoute requiredRole="ADMIN">
+                      <AdminCoupons />
                     </ProtectedRoute>
                   }
                 />

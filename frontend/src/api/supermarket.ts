@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { OrderStatus } from './orders'
+import type { FulfilmentType, OrderStatus } from './orders'
 
 export type SupermarketStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
 
@@ -95,8 +95,14 @@ export interface OwnerOrder {
   branchId: number
   branchName: string
   status: OrderStatus
+  fulfilmentType: FulfilmentType
+  scheduledFor: string | null
+  subtotal: number
+  deliveryFee: number
   totalAmount: number
   currency: string
+  couponCode: string | null
+  discountAmount: number
   items: OwnerOrderItem[]
   deliveryAddress: string | null
   createdAt: string

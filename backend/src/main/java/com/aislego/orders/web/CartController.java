@@ -1,7 +1,9 @@
 package com.aislego.orders.web;
 
+import com.aislego.catalogue.dto.AvailableCouponResponse;
 import com.aislego.common.security.AuthenticatedUser;
 import com.aislego.orders.dto.AddCartItemRequest;
+import com.aislego.orders.dto.ApplyCouponRequest;
 import com.aislego.orders.dto.CartResponse;
 import com.aislego.orders.dto.UpdateCartItemRequest;
 import com.aislego.orders.service.CartService;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/cart")
@@ -55,5 +59,22 @@ public class CartController {
     @DeleteMapping
     public CartResponse clear(@AuthenticationPrincipal AuthenticatedUser principal) {
         return cartService.clearCart(principal.userId());
+    }
+
+    @PostMapping("/coupon")
+    public CartResponse applyCoupon(@AuthenticationPrincipal AuthenticatedUser principal,
+                                     @Valid @RequestBody ApplyCouponRequest request) {
+        return cartService.applyCoupon(principal.userId(), request.code());
+    }
+
+    @DeleteMapping("/coupon")
+    public CartResponse removeCoupon(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return cartService.removeCoupon(principal.userId());
+    }
+
+    @GetMapping("/coupons")
+    public List<AvailableCouponResponse> availableCoupons(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        return cartService.listAvailableCoupons(principal.userId());
     }
 }

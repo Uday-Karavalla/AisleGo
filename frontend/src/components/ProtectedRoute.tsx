@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 interface ProtectedRouteProps {
@@ -13,13 +13,20 @@ interface ProtectedRouteProps {
  *  and nested-route (`<Outlet/>`) usage, matching whichever reads better at the call site. */
 export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth()
+  const location = useLocation()
 
   if (isLoading) {
     return <div className="px-5 py-16 text-center text-sm text-ink-muted">Loading…</div>
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ returnTo: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    )
   }
 
   if (requiredRole && !user.roles.includes(requiredRole)) {

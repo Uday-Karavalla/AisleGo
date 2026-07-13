@@ -22,9 +22,9 @@ vi.mock('../api/auth', () => ({
   },
 }))
 
-function renderLogin() {
+function renderLogin(state?: { returnTo: string }) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[{ pathname: '/login', state }]}>
       <AuthProvider>
         <Login />
       </AuthProvider>
@@ -44,6 +44,28 @@ beforeEach(() => {
 })
 
 describe('Login', () => {
+  it('returns a customer to checkout after authentication', async () => {
+    vi.mocked(authApi.login).mockResolvedValue({
+      accessToken: 'token-customer',
+      refreshToken: 'refresh-customer',
+      tokenType: 'Bearer',
+      expiresInMillis: 3600000,
+    })
+    vi.mocked(authApi.me).mockResolvedValue({
+      id: 3,
+      email: 'shopper@example.com',
+      roles: ['CUSTOMER'],
+      emailVerified: true,
+    })
+
+    const user = userEvent.setup()
+    renderLogin({ returnTo: '/checkout' })
+    expect(screen.getByText(/your cart is waiting/i)).toBeInTheDocument()
+    await fillAndSubmit(user, 'shopper@example.com', 'password123')
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/checkout', { replace: true }))
+  })
+
   it('logs an admin in and redirects to /admin', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       accessToken: 'token-abc',

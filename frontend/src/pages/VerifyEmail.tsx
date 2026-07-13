@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../api/client'
 import { CheckIcon } from '../components/icons'
+import { safeReturnPath } from '../utils/authRedirect'
 
 export default function VerifyEmail() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, verifyEmail, resendVerification } = useAuth()
+  const returnTo = safeReturnPath(location.state)
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -19,8 +22,8 @@ export default function VerifyEmail() {
         <div className="page-narrow flex flex-col items-center gap-3 text-center">
           <CheckIcon className="h-10 w-10 text-brand-600" />
           <h1 className="text-lg font-bold text-ink">Your email is verified</h1>
-          <button type="button" className="btn-primary" onClick={() => navigate('/')}>
-            Continue
+          <button type="button" className="btn-primary" onClick={() => navigate(returnTo ?? '/') }>
+            {returnTo === '/checkout' ? 'Continue to checkout' : 'Continue'}
           </button>
         </div>
       </div>

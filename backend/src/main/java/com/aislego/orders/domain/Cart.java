@@ -36,6 +36,10 @@ public class Cart extends BaseEntity {
     @Column(name = "supermarket_id")
     private Long supermarketId;
 
+    /** A code, not a foreign key to a {@code Coupon} row - see the V11 migration comment. */
+    @Column(name = "coupon_code")
+    private String couponCode;
+
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<CartItem> items = new ArrayList<>();
 

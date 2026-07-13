@@ -18,8 +18,27 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
+        lang: 'en-IN',
+        id: '/',
         start_url: '/',
         scope: '/',
+        categories: ['shopping', 'food', 'lifestyle'],
+        shortcuts: [
+          {
+            name: 'Find supermarkets',
+            short_name: 'Find stores',
+            description: 'Discover supermarkets near your location',
+            url: '/',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Open cart',
+            short_name: 'Cart',
+            description: 'Review your AisleGo cart',
+            url: '/cart',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

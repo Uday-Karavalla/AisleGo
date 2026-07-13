@@ -1,13 +1,17 @@
 package com.aislego.catalogue.web;
 
 import com.aislego.catalogue.dto.BranchResponse;
+import com.aislego.catalogue.dto.CouponResponse;
 import com.aislego.catalogue.dto.CreateBranchRequest;
+import com.aislego.catalogue.dto.CreateCouponRequest;
 import com.aislego.catalogue.dto.CreateProductRequest;
 import com.aislego.catalogue.dto.MySupermarketResponse;
 import com.aislego.catalogue.dto.OwnerProductResponse;
 import com.aislego.catalogue.dto.UpdateBranchRequest;
+import com.aislego.catalogue.dto.UpdateCouponRequest;
 import com.aislego.catalogue.dto.UpdateInventoryRequest;
 import com.aislego.catalogue.dto.UpdateProductRequest;
+import com.aislego.catalogue.service.CouponService;
 import com.aislego.catalogue.service.OwnerCatalogService;
 import com.aislego.catalogue.service.SupermarketVerificationService;
 import com.aislego.common.security.AuthenticatedUser;
@@ -41,13 +45,16 @@ public class SupermarketOwnerController {
     private final SupermarketVerificationService verificationService;
     private final OwnerCatalogService ownerCatalogService;
     private final OwnerOrderService ownerOrderService;
+    private final CouponService couponService;
 
     public SupermarketOwnerController(SupermarketVerificationService verificationService,
                                        OwnerCatalogService ownerCatalogService,
-                                       OwnerOrderService ownerOrderService) {
+                                       OwnerOrderService ownerOrderService,
+                                       CouponService couponService) {
         this.verificationService = verificationService;
         this.ownerCatalogService = ownerCatalogService;
         this.ownerOrderService = ownerOrderService;
+        this.couponService = couponService;
     }
 
     /**
@@ -129,5 +136,30 @@ public class SupermarketOwnerController {
                                                  @PathVariable Long orderId,
                                                  @Valid @RequestBody UpdateOrderStatusRequest request) {
         return ownerOrderService.advanceStatus(principal.userId(), orderId, request.status());
+    }
+
+    @GetMapping("/mine/coupons")
+    public List<CouponResponse> listCoupons(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return couponService.listStoreCoupons(principal.userId());
+    }
+
+    @PostMapping("/mine/coupons")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CouponResponse createCoupon(@AuthenticationPrincipal AuthenticatedUser principal,
+                                        @Valid @RequestBody CreateCouponRequest request) {
+        return couponService.createStoreCoupon(principal.userId(), request);
+    }
+
+    @PatchMapping("/mine/coupons/{couponId}")
+    public CouponResponse updateCoupon(@AuthenticationPrincipal AuthenticatedUser principal,
+                                        @PathVariable Long couponId,
+                                        @Valid @RequestBody UpdateCouponRequest request) {
+        return couponService.updateStoreCoupon(principal.userId(), couponId, request);
+    }
+
+    @DeleteMapping("/mine/coupons/{couponId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCoupon(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable Long couponId) {
+        couponService.deleteStoreCoupon(principal.userId(), couponId);
     }
 }

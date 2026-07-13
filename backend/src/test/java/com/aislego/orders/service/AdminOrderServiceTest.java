@@ -5,6 +5,7 @@ import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.common.money.Money;
 import com.aislego.identity.domain.User;
 import com.aislego.orders.domain.Order;
+import com.aislego.orders.domain.FulfilmentType;
 import com.aislego.orders.domain.OrderStatus;
 import com.aislego.orders.dto.AdminOrderResponse;
 import com.aislego.orders.repository.OrderRepository;
@@ -45,6 +46,11 @@ class AdminOrderServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).customerEmail()).isEqualTo("jane@example.com");
+        assertThat(result.getContent().get(0).couponCode()).isEqualTo("SAVE10");
+        assertThat(result.getContent().get(0).discountAmount()).isEqualByComparingTo("10.00");
+        assertThat(result.getContent().get(0).subtotal()).isEqualByComparingTo("120.00");
+        assertThat(result.getContent().get(0).deliveryFee()).isEqualByComparingTo("25.00");
+        assertThat(result.getContent().get(0).fulfilmentType()).isEqualTo(FulfilmentType.IMMEDIATE);
         verify(orderRepository, never()).findByStatusOrderByCreatedAtDesc(any(), any());
     }
 
@@ -81,7 +87,10 @@ class AdminOrderServiceTest {
         order.setSupermarket(supermarket);
         order.setBranch(branch);
         order.setStatus(OrderStatus.PLACED);
-        order.setTotalAmount(Money.of(BigDecimal.valueOf(120), "INR"));
+        order.setTotalAmount(Money.of(BigDecimal.valueOf(135), "INR"));
+        order.setCouponCode("SAVE10");
+        order.setDiscountAmount(BigDecimal.TEN);
+        order.setDeliveryFee(BigDecimal.valueOf(25));
         return order;
     }
 }

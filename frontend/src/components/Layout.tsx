@@ -3,6 +3,7 @@ import { useCart } from '../context/CartContext'
 import { useUserLocation } from '../context/LocationContext'
 import { useAuth } from '../context/AuthContext'
 import { HomeIcon, CartIcon, ClipboardIcon, MapPinIcon, UserIcon } from './icons'
+import { PwaInstallPrompt } from './PwaInstallPrompt'
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
   return `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium ${
@@ -17,13 +18,12 @@ function AccountMenu() {
 
   if (!user) {
     return (
-      <div className="flex shrink-0 items-center gap-2 text-xs font-semibold">
-        <Link to="/login" className="text-brand-700">
+      <div className="flex shrink-0 items-center gap-2 text-xs font-semibold sm:text-sm">
+        <Link to="/login" className="rounded-xl px-2.5 py-2 text-brand-700 transition hover:bg-brand-50">
           Log in
         </Link>
-        <span className="text-ink-faint">·</span>
-        <Link to="/register" className="text-brand-700">
-          Sign up
+        <Link to="/register" className="rounded-xl bg-brand-600 px-3 py-2 text-white shadow-card transition hover:bg-brand-700">
+          Get started
         </Link>
       </div>
     )
@@ -81,6 +81,11 @@ function AccountMenu() {
         {user.roles.includes('ADMIN') && (
           <Link to="/admin/users" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             Admin — manage users
+          </Link>
+        )}
+        {user.roles.includes('ADMIN') && (
+          <Link to="/admin/coupons" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            Admin — coupons
           </Link>
         )}
         {user.roles.includes('SUPERMARKET_OWNER') && (
@@ -185,6 +190,8 @@ export function Layout() {
       <main className="flex-1 pb-24 md:pb-8">
         <Outlet />
       </main>
+
+      <PwaInstallPrompt />
 
       <nav
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-black/5 bg-white md:hidden"

@@ -158,3 +158,53 @@ export function StoreIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function TagIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 13 13 20 4 11V4h7Z" />
+      <circle cx="8.5" cy="8.5" r="1.2" />
+    </svg>
+  )
+}
+
+export function ShieldCheckIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3 20 6v5.5c0 4.7-3.2 7.8-8 9.5-4.8-1.7-8-4.8-8-9.5V6Z" />
+      <path d="m8.5 12 2.2 2.2 4.8-5" />
+    </svg>
+  )
+}
+
+export function TruckIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 6h11v10H3Z" />
+      <path d="M14 9h3l4 4v3h-7Z" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17.5" cy="18" r="2" />
+    </svg>
+  )
+}
+
+export function ShareIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5" />
+    </svg>
+  )
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 20h14" />
+    </svg>
+  )
+}

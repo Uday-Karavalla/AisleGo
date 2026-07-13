@@ -1,14 +1,69 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { useCart } from '../context/CartContext'
 import { QuantityStepper } from '../components/QuantityStepper'
 import { EmptyState } from '../components/EmptyState'
-import { CartIcon, XIcon } from '../components/icons'
+import { CartIcon, TagIcon, XIcon } from '../components/icons'
+import { cartApi } from '../api/cart'
+import type { AvailableCoupon } from '../api/cart'
+import { getAuthToken } from '../api/client'
 
 export default function Cart() {
   const navigate = useNavigate()
   const { cart, isEmpty, updateQuantity, setSubstitution, removeItem, applyCoupon } = useCart()
   const [couponInput, setCouponInput] = useState(cart.couponCode ?? '')
+  const [couponSubmitting, setCouponSubmitting] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([])
+  const [offersLoading, setOffersLoading] = useState(false)
+  const signedIn = Boolean(getAuthToken())
+
+  useEffect(() => {
+    if (!signedIn || !cart.storeId || cart.items.length === 0) return
+    let cancelled = false
+    setOffersLoading(true)
+    cartApi
+      .availableCoupons()
+      .then((offers) => {
+        if (!cancelled) setAvailableCoupons(offers)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableCoupons([])
+      })
+      .finally(() => {
+        if (!cancelled) setOffersLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [signedIn, cart.storeId, cart.items.length, cart.subtotal])
+
+  async function handleCouponSubmit(event: FormEvent) {
+    event.preventDefault()
+    setCouponSubmitting(true)
+    setCouponError(null)
+    try {
+      await applyCoupon(couponInput)
+    } catch (error) {
+      setCouponError(error instanceof Error ? error.message : 'Could not apply that coupon.')
+    } finally {
+      setCouponSubmitting(false)
+    }
+  }
+
+  async function applySuggestedCoupon(code: string) {
+    setCouponInput(code)
+    setCouponSubmitting(true)
+    setCouponError(null)
+    try {
+      await applyCoupon(code)
+    } catch (error) {
+      setCouponError(error instanceof Error ? error.message : 'Could not apply that coupon.')
+    } finally {
+      setCouponSubmitting(false)
+    }
+  }
 
   if (isEmpty) {
     return (
@@ -87,7 +142,7 @@ export default function Cart() {
         <label htmlFor="coupon" className="text-sm font-bold text-ink">
           Coupon code
         </label>
-        <div className="flex gap-2">
+        <form className="flex gap-2" onSubmit={handleCouponSubmit}>
           <input
             id="coupon"
             className="input-field flex-1"
@@ -95,11 +150,69 @@ export default function Cart() {
             value={couponInput}
             onChange={(event) => setCouponInput(event.target.value)}
           />
-          <button type="button" className="btn-secondary px-4" onClick={() => applyCoupon(couponInput)}>
-            Apply
+          <button type="submit" className="btn-secondary px-4" disabled={couponSubmitting}>
+            {couponSubmitting ? 'Applying…' : couponInput.trim() ? 'Apply' : 'Remove'}
           </button>
-        </div>
+        </form>
+        {couponError && <p role="alert" className="text-xs text-danger-500">{couponError}</p>}
         {cart.couponCode && <p className="text-xs text-brand-700">&ldquo;{cart.couponCode}&rdquo; applied.</p>}
+
+        {!signedIn && (
+          <div className="rounded-2xl bg-brand-50 p-3 text-sm text-brand-800">
+            <p className="font-bold">Don&apos;t miss an offer</p>
+            <p className="mt-0.5 text-xs text-brand-700">
+              <Link to="/login" className="font-bold underline">Log in</Link> to reveal coupons available for this store.
+            </p>
+          </div>
+        )}
+
+        {signedIn && offersLoading && (
+          <div className="h-20 animate-pulse rounded-2xl bg-black/5" aria-label="Loading available coupons" />
+        )}
+
+        {signedIn && !offersLoading && availableCoupons.some((offer) => offer.code !== cart.couponCode) && (
+          <div className="border-t border-black/5 pt-3">
+            <div className="mb-2 flex items-center gap-2">
+              <TagIcon className="h-4 w-4 text-brand-700" />
+              <p className="text-xs font-bold uppercase tracking-wide text-brand-700">Available offers</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {availableCoupons
+                .filter((offer) => offer.code !== cart.couponCode)
+                .map((offer) => (
+                  <div key={offer.code} className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-lg border border-dashed border-brand-500 bg-white px-2 py-1 font-mono text-xs font-black text-brand-800">
+                          {offer.code}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                          {offer.scope === 'STORE' ? 'Store offer' : 'AisleGo offer'}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-sm font-bold text-ink">
+                        {offer.discountType === 'PERCENTAGE'
+                          ? `${offer.percentOff}% off`
+                          : `₹${offer.amountOff?.toFixed(0)} off`}
+                        {offer.estimatedDiscount > 0 && ` · Save ₹${offer.estimatedDiscount.toFixed(0)} now`}
+                      </p>
+                      {offer.expiresAt && (
+                        <p className="mt-0.5 text-xs text-ink-faint">Ends {new Date(offer.expiresAt).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                      disabled={couponSubmitting}
+                      onClick={() => applySuggestedCoupon(offer.code)}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card flex flex-col gap-2">

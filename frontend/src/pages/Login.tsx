@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../api/client'
+import { safeReturnPath } from '../utils/authRedirect'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
+  const returnTo = safeReturnPath(location.state)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -20,6 +23,7 @@ export default function Login() {
       const user = await login(email, password)
       if (user.roles.includes('ADMIN')) navigate('/admin')
       else if (user.roles.includes('SUPERMARKET_OWNER')) navigate('/my-store')
+      else if (returnTo) navigate(returnTo, { replace: true })
       else navigate('/')
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -36,7 +40,11 @@ export default function Login() {
     <div className="page-narrow flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Sign in</h1>
-        <p className="mt-1 text-sm text-ink-muted">Customers, supermarket owners, and AisleGo admins all sign in here.</p>
+        <p className="mt-1 text-sm text-ink-muted">
+          {returnTo === '/checkout'
+            ? 'Your cart is waiting. Sign in to continue securely to checkout.'
+            : 'Customers, supermarket owners, and AisleGo admins all sign in here.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-3">
@@ -79,7 +87,7 @@ export default function Login() {
 
       <p className="text-center text-sm text-ink-muted">
         New to AisleGo?{' '}
-        <Link to="/register" className="font-semibold text-brand-700">
+        <Link to="/register" state={returnTo ? { returnTo } : undefined} className="font-semibold text-brand-700">
           Create an account
         </Link>
       </p>

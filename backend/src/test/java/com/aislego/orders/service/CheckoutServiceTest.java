@@ -6,7 +6,9 @@ import com.aislego.catalogue.domain.Branch;
 import com.aislego.catalogue.domain.Product;
 import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.catalogue.repository.BranchRepository;
+import com.aislego.catalogue.service.CouponService;
 import com.aislego.common.exception.ForbiddenException;
+import com.aislego.common.exception.BadRequestException;
 import com.aislego.common.exception.NotFoundException;
 import com.aislego.common.money.Money;
 import com.aislego.identity.domain.User;
@@ -17,6 +19,7 @@ import com.aislego.notifications.Notification;
 import com.aislego.notifications.NotificationService;
 import com.aislego.orders.domain.Cart;
 import com.aislego.orders.domain.CartItem;
+import com.aislego.orders.domain.FulfilmentType;
 import com.aislego.orders.domain.Order;
 import com.aislego.orders.domain.OrderItem;
 import com.aislego.orders.domain.OrderStatus;
@@ -39,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -76,6 +81,8 @@ class CheckoutServiceTest {
     private PaymentRepository paymentRepository;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private CouponService couponService;
 
     private CheckoutService checkoutService;
 
@@ -88,7 +95,7 @@ class CheckoutServiceTest {
     void setUp() {
         checkoutService = new CheckoutService(cartRepository, orderRepository, branchRepository, userRepository,
                 addressRepository, inventoryReservationService, paymentService, paymentRepository,
-                notificationService, "mock");
+                notificationService, couponService, "mock");
     }
 
     @Test
@@ -170,6 +177,7 @@ class CheckoutServiceTest {
         Cart cart = buildCart();
         Branch branch = buildBranch();
         Address address = buildAddress(50L, USER_ID);
+        Instant scheduledFor = Instant.parse("2099-07-14T10:30:00Z");
 
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildCustomer()));
         when(orderRepository.findByUserIdAndIdempotencyKey(USER_ID, "key-2")).thenReturn(Optional.empty());
@@ -183,13 +191,59 @@ class CheckoutServiceTest {
             return o;
         });
         when(paymentService.createIntent(any(), any()))
-                .thenReturn(new PaymentIntent("MOCK-xyz", false, null, 6000, "INR"));
+                .thenReturn(new PaymentIntent("MOCK-xyz", false, null, 8500, "INR"));
+        when(couponService.calculateDiscount(isNull(), any())).thenReturn(Money.zero("INR"));
 
-        checkoutService.checkout(USER_ID, "key-2", new CheckoutRequest(BRANCH_ID, 50L));
+        checkoutService.checkout(USER_ID, "key-2",
+                new CheckoutRequest(BRANCH_ID, FulfilmentType.SCHEDULED, 50L, scheduledFor));
 
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getDeliveryAddress()).isEqualTo("221B Baker St, Springfield, ST 12345");
+        assertThat(orderCaptor.getValue().getFulfilmentType()).isEqualTo(FulfilmentType.SCHEDULED);
+        assertThat(orderCaptor.getValue().getScheduledFor()).isEqualTo(scheduledFor);
+        assertThat(orderCaptor.getValue().getDeliveryFee()).isEqualByComparingTo("25.00");
+        assertThat(orderCaptor.getValue().getTotalAmount()).isEqualTo(Money.of("85.00", "INR"));
+        verify(paymentService).createIntent(ORDER_ID, Money.of("85.00", "INR"));
+    }
+
+    @Test
+    void checkoutAppliesTheCartsCouponDiscountToTheOrderTotal() {
+        Cart cart = buildCart();
+        cart.setCouponCode("SAVE10");
+        Branch branch = buildBranch();
+
+        com.aislego.catalogue.domain.Coupon coupon = new com.aislego.catalogue.domain.Coupon();
+        coupon.setCode("SAVE10");
+
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildCustomer()));
+        when(orderRepository.findByUserIdAndIdempotencyKey(USER_ID, "key-5")).thenReturn(Optional.empty());
+        when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cart));
+        when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
+        when(userRepository.getReferenceById(USER_ID)).thenReturn(buildCustomer());
+        when(couponService.tryResolveApplicableCoupon("SAVE10", 1L)).thenReturn(Optional.of(coupon));
+        when(couponService.calculateDiscount(coupon, Money.of(BigDecimal.valueOf(60), "INR")))
+                .thenReturn(Money.of(BigDecimal.valueOf(6), "INR"));
+        when(orderRepository.save(any())).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(ORDER_ID);
+            return o;
+        });
+        when(paymentService.createIntent(any(), any()))
+                .thenReturn(new PaymentIntent("MOCK-xyz", false, null, 5400, "INR"));
+
+        checkoutService.checkout(USER_ID, "key-5",
+                new CheckoutRequest(BRANCH_ID, FulfilmentType.PICKUP, null, null));
+
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        Order savedOrder = orderCaptor.getValue();
+        assertThat(savedOrder.getCouponCode()).isEqualTo("SAVE10");
+        assertThat(savedOrder.getDiscountAmount()).isEqualByComparingTo(BigDecimal.valueOf(6));
+        assertThat(savedOrder.getFulfilmentType()).isEqualTo(FulfilmentType.PICKUP);
+        assertThat(savedOrder.getDeliveryFee()).isEqualByComparingTo("0.00");
+        assertThat(savedOrder.getTotalAmount()).isEqualTo(Money.of(BigDecimal.valueOf(54), "INR"));
+        verify(paymentService).createIntent(ORDER_ID, Money.of("54.00", "INR"));
     }
 
     @Test
@@ -203,9 +257,44 @@ class CheckoutServiceTest {
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
         when(addressRepository.findByIdAndUserId(50L, USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-3", new CheckoutRequest(BRANCH_ID, 50L)))
+        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-3",
+                new CheckoutRequest(BRANCH_ID, FulfilmentType.IMMEDIATE, 50L, null)))
                 .isInstanceOf(NotFoundException.class);
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void checkoutRejectsScheduledDeliveryWithoutATimeBeforeReservingStock() {
+        Cart cart = buildCart();
+        Branch branch = buildBranch();
+
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildCustomer()));
+        when(orderRepository.findByUserIdAndIdempotencyKey(USER_ID, "key-scheduled")).thenReturn(Optional.empty());
+        when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cart));
+        when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
+
+        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-scheduled",
+                new CheckoutRequest(BRANCH_ID, FulfilmentType.SCHEDULED, 50L, null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("delivery time");
+        verify(inventoryReservationService, never()).reserveForOrder(any(), any());
+    }
+
+    @Test
+    void checkoutRejectsDeliveryWithoutAnAddressBeforeReservingStock() {
+        Cart cart = buildCart();
+        Branch branch = buildBranch();
+
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildCustomer()));
+        when(orderRepository.findByUserIdAndIdempotencyKey(USER_ID, "key-address")).thenReturn(Optional.empty());
+        when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cart));
+        when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(branch));
+
+        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-address",
+                new CheckoutRequest(BRANCH_ID, FulfilmentType.IMMEDIATE, null, null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("delivery address");
+        verify(inventoryReservationService, never()).reserveForOrder(any(), any());
     }
 
     @Test
@@ -214,7 +303,8 @@ class CheckoutServiceTest {
         unverified.setEmailVerified(false);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(unverified));
 
-        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-4", new CheckoutRequest(BRANCH_ID, null)))
+        assertThatThrownBy(() -> checkoutService.checkout(USER_ID, "key-4",
+                new CheckoutRequest(BRANCH_ID, FulfilmentType.PICKUP, null, null)))
                 .isInstanceOf(ForbiddenException.class);
         verify(cartRepository, never()).findByUserId(any());
         verify(orderRepository, never()).save(any());

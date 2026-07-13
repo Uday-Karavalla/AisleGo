@@ -38,6 +38,28 @@ export interface UpdateCartItemRequest {
   allowSubstitution?: boolean
 }
 
+/** Coupon fields returned by every server cart response. The rest of the cart is still
+ * represented locally because the current backend response does not carry UI-only product
+ * details such as unit, image URL, branch name, or substitution preference. */
+export interface CartCouponState {
+  subtotal: number
+  deliveryFee: number
+  couponCode: string | null
+  discount: number
+  total: number
+}
+
+export interface AvailableCoupon {
+  code: string
+  discountType: 'PERCENTAGE' | 'FLAT'
+  percentOff: number | null
+  amountOff: number | null
+  currency: string | null
+  expiresAt: string | null
+  scope: 'STORE' | 'PLATFORM'
+  estimatedDiscount: number
+}
+
 /** Error code the backend returns (409) when a product from a different store is added. */
 export const CROSS_STORE_CONFLICT_CODE = 'CROSS_STORE_CONFLICT'
 
@@ -49,10 +71,13 @@ export interface CrossStoreConflictPayload {
 }
 
 export const cartApi = {
-  get: () => api.get<Cart>('/cart'),
-  addItem: (body: AddCartItemRequest) => api.post<Cart>('/cart/items', body),
-  updateItem: (itemId: string, body: UpdateCartItemRequest) => api.patch<Cart>(`/cart/items/${itemId}`, body),
-  removeItem: (itemId: string) => api.delete<Cart>(`/cart/items/${itemId}`),
-  clear: () => api.delete<Cart>('/cart'),
-  applyCoupon: (code: string) => api.post<Cart>('/cart/coupon', { code }),
+  get: () => api.get<CartCouponState>('/cart'),
+  addItem: (body: AddCartItemRequest) => api.post<CartCouponState>('/cart/items', body),
+  updateItem: (itemId: string, body: UpdateCartItemRequest) =>
+    api.patch<CartCouponState>(`/cart/items/${itemId}`, body),
+  removeItem: (itemId: string) => api.delete<CartCouponState>(`/cart/items/${itemId}`),
+  clear: () => api.delete<CartCouponState>('/cart'),
+  applyCoupon: (code: string) => api.post<CartCouponState>('/cart/coupon', { code }),
+  removeCoupon: () => api.delete<CartCouponState>('/cart/coupon'),
+  availableCoupons: () => api.get<AvailableCoupon[]>('/cart/coupons'),
 }

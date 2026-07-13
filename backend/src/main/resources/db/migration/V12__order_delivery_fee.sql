@@ -1,0 +1,2 @@
+ALTER TABLE orders
+    ADD COLUMN delivery_fee NUMERIC(19, 2) NOT NULL DEFAULT 0;

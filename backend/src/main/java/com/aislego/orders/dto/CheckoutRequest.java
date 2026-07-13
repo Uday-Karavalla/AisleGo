@@ -2,11 +2,17 @@ package com.aislego.orders.dto;
 
 import jakarta.validation.constraints.NotNull;
 
-/** Branch chosen for fulfilment - must belong to the same supermarket as the cart's items.
- *  {@code addressId}, if given, must belong to the calling customer; null for a pickup order
- *  or when the customer has no saved address yet. */
+import com.aislego.orders.domain.FulfilmentType;
+
+import java.time.Instant;
+
+/** Branch and fulfilment choice for this checkout. Delivery requires an address owned by
+ *  the customer; scheduled delivery additionally requires a future timestamp. Pickup uses
+ *  neither an address nor a scheduled timestamp. */
 public record CheckoutRequest(
         @NotNull Long branchId,
-        Long addressId
+        @NotNull FulfilmentType fulfilmentType,
+        Long addressId,
+        Instant scheduledFor
 ) {
 }

@@ -88,6 +88,13 @@ export default function OrderTracking() {
           <ClockIcon className="h-4 w-4" />
           Placed {new Date(order.createdAt).toLocaleString()}
         </p>
+        <p className="mt-1 text-sm text-ink-muted">
+          {order.fulfilmentType === 'PICKUP'
+            ? 'Store pickup'
+            : order.fulfilmentType === 'SCHEDULED' && order.scheduledFor
+              ? `Scheduled for ${new Date(order.scheduledFor).toLocaleString()}`
+              : 'ASAP delivery'}
+        </p>
       </div>
 
       <div className="card">
@@ -113,6 +120,20 @@ export default function OrderTracking() {
             </li>
           ))}
         </ul>
+        <div className="mt-3 flex justify-between border-t border-black/5 pt-3 text-sm text-ink-muted">
+          <span>Subtotal</span>
+          <span>₹{order.subtotal.toFixed(0)}</span>
+        </div>
+        <div className="mt-1 flex justify-between text-sm text-ink-muted">
+          <span>Delivery fee</span>
+          <span>₹{order.deliveryFee.toFixed(0)}</span>
+        </div>
+        {order.discountAmount > 0 && (
+            <div className="mt-1 flex justify-between text-sm text-brand-700">
+              <span>{order.couponCode ? `Coupon (${order.couponCode})` : 'Discount'}</span>
+              <span>-₹{order.discountAmount.toFixed(0)}</span>
+            </div>
+        )}
         <div className="mt-3 flex justify-between border-t border-black/5 pt-3 text-sm font-bold text-ink">
           <span>Total</span>
           <span>₹{order.totalAmount.toFixed(0)}</span>

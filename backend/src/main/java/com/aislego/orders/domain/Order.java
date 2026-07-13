@@ -22,6 +22,8 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,6 +71,30 @@ public class Order extends BaseEntity {
      *  selected. */
     @Column(name = "delivery_address")
     private String deliveryAddress;
+
+    /** Snapshot of the coupon code applied at checkout, if any - not a foreign key, same
+     *  reasoning as {@link #deliveryAddress}: this order's history shouldn't change if the
+     *  coupon is later edited or deleted. Null if no coupon was applied. */
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    /** In {@link #totalAmount}'s currency; zero (not null) when no coupon was applied, so
+     *  callers never need a null check to display it. */
+    @Column(name = "discount_amount", precision = 19, scale = 2, nullable = false)
+    private java.math.BigDecimal discountAmount = java.math.BigDecimal.ZERO;
+
+    /** Delivery-fee snapshot charged for this order. Keeping it on the order makes payment
+     *  retries and historical price breakdowns independent of future pricing-rule changes. */
+    @Column(name = "delivery_fee", precision = 19, scale = 2, nullable = false)
+    private BigDecimal deliveryFee = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fulfilment_type", nullable = false)
+    private FulfilmentType fulfilmentType = FulfilmentType.IMMEDIATE;
+
+    /** Requested delivery time for scheduled orders; null for ASAP delivery and pickup. */
+    @Column(name = "scheduled_for")
+    private Instant scheduledFor;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<OrderItem> items = new ArrayList<>();

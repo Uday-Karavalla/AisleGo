@@ -4,7 +4,7 @@
 // backend responds successfully — every call here is only reached from an ApiError
 // with isNetworkError === true.
 import { ORDER_STAGES } from './orders'
-import type { Order, OrderItem } from './orders'
+import type { FulfilmentType, Order, OrderItem } from './orders'
 import type { Cart } from './cart'
 
 const STORAGE_PREFIX = 'aislego.mockOrder.'
@@ -36,8 +36,13 @@ export function loadMockOrder(orderId: number): Order | null {
 
 /** Creates a locally-simulated, already-paid order (mirrors the mock payment gateway's
  *  always-succeeds behaviour) when the real `/api/checkout` + verify calls can't be reached. */
-export function createMockOrder(params: { branchId: number; cart: Cart }): Order {
-  const { branchId, cart } = params
+export function createMockOrder(params: {
+  branchId: number
+  cart: Cart
+  fulfilmentType: FulfilmentType
+  scheduledFor?: string
+}): Order {
+  const { branchId, cart, fulfilmentType, scheduledFor } = params
   const placedAt = new Date()
 
   const items: OrderItem[] = cart.items.map((item) => ({
@@ -53,8 +58,14 @@ export function createMockOrder(params: { branchId: number; cart: Cart }): Order
     supermarketId: branchId,
     branchId,
     status: 'PAYMENT_CONFIRMED',
-    totalAmount: cart.total,
+    fulfilmentType,
+    scheduledFor: scheduledFor ?? null,
+    subtotal: cart.subtotal,
+    deliveryFee: fulfilmentType === 'PICKUP' ? 0 : cart.deliveryFee,
+    totalAmount: cart.subtotal - cart.discount + (fulfilmentType === 'PICKUP' ? 0 : cart.deliveryFee),
     currency: 'INR',
+    couponCode: cart.couponCode ?? null,
+    discountAmount: cart.discount,
     items,
     deliveryAddress: null,
     createdAt: placedAt.toISOString(),

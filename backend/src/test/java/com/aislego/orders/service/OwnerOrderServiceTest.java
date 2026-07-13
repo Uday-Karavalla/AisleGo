@@ -12,6 +12,7 @@ import com.aislego.inventory.service.StockReservationLine;
 import com.aislego.notifications.Notification;
 import com.aislego.notifications.NotificationService;
 import com.aislego.orders.domain.Order;
+import com.aislego.orders.domain.FulfilmentType;
 import com.aislego.orders.domain.OrderItem;
 import com.aislego.orders.domain.OrderStatus;
 import com.aislego.orders.dto.OwnerOrderResponse;
@@ -78,6 +79,11 @@ class OwnerOrderServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).customerName()).isEqualTo("Jane Customer");
+        assertThat(result.get(0).couponCode()).isEqualTo("SAVE10");
+        assertThat(result.get(0).discountAmount()).isEqualByComparingTo("10.00");
+        assertThat(result.get(0).subtotal()).isEqualByComparingTo("120.00");
+        assertThat(result.get(0).deliveryFee()).isEqualByComparingTo("25.00");
+        assertThat(result.get(0).fulfilmentType()).isEqualTo(FulfilmentType.IMMEDIATE);
         verify(orderRepository, never()).findBySupermarketIdAndStatusOrderByCreatedAtDesc(any(), any());
     }
 
@@ -158,7 +164,10 @@ class OwnerOrderServiceTest {
         order.setSupermarket(mySupermarket);
         order.setBranch(branch);
         order.setStatus(status);
-        order.setTotalAmount(Money.of(BigDecimal.valueOf(120), "INR"));
+        order.setTotalAmount(Money.of(BigDecimal.valueOf(135), "INR"));
+        order.setCouponCode("SAVE10");
+        order.setDiscountAmount(BigDecimal.TEN);
+        order.setDeliveryFee(BigDecimal.valueOf(25));
 
         com.aislego.catalogue.domain.Product catalogueProduct = new com.aislego.catalogue.domain.Product();
         catalogueProduct.setId(50L);

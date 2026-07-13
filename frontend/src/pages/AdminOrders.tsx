@@ -116,14 +116,24 @@ export default function AdminOrders() {
             <p className="text-sm text-ink-muted">
               {order.supermarketName} — {order.branchName}
             </p>
+            <p className="text-sm font-medium text-ink-muted">
+              {order.fulfilmentType === 'PICKUP'
+                ? 'Store pickup'
+                : order.fulfilmentType === 'SCHEDULED' && order.scheduledFor
+                  ? `Scheduled delivery: ${new Date(order.scheduledFor).toLocaleString()}`
+                  : 'ASAP delivery'}
+            </p>
             {order.deliveryAddress && (
               <p className="text-sm text-ink-muted">Deliver to: {order.deliveryAddress}</p>
             )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-ink-muted">{new Date(order.createdAt).toLocaleString()}</span>
-              <span className="font-bold text-ink">
-                {order.currency} {order.totalAmount.toFixed(2)}
-              </span>
+              <div className="text-right">
+                {order.discountAmount > 0 && (
+                  <p className="text-xs text-brand-700">{order.couponCode ?? 'Discount'}: -{order.currency} {order.discountAmount.toFixed(2)}</p>
+                )}
+                <p className="font-bold text-ink">{order.currency} {order.totalAmount.toFixed(2)}</p>
+              </div>
             </div>
           </div>
         ))}

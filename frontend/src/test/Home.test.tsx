@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import Home from '../pages/Home'
 import { LocationProvider } from '../context/LocationContext'
 import { storesApi } from '../api/stores'
@@ -20,9 +21,11 @@ vi.mock('../api/stores', () => ({
 
 function renderHome() {
   return render(
-    <LocationProvider>
-      <Home />
-    </LocationProvider>,
+    <MemoryRouter>
+      <LocationProvider>
+        <Home />
+      </LocationProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -37,6 +40,18 @@ beforeEach(() => {
 })
 
 describe('Home — manual address entry (geocode-then-navigate)', () => {
+  it('explains the shopper value proposition and flexible fulfilment options', () => {
+    renderHome()
+
+    expect(screen.getByRole('heading', { name: /groceries you trust/i })).toBeInTheDocument()
+    expect(screen.getByText('Coupons at checkout')).toBeInTheDocument()
+    expect(screen.getByText('Free store pickup')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /more control over every grocery run/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /questions before your first order/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /share aislego/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /list your store/i })).toHaveAttribute('href', '/register-store')
+  })
+
   it('resolves the typed address to real coordinates and navigates to /stores', async () => {
     vi.mocked(storesApi.geocode).mockResolvedValue({ lat: 12.34, lng: 56.78 })
     const user = userEvent.setup()

@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { cartApi, CROSS_STORE_CONFLICT_CODE } from '../api/cart'
 import type { Cart, CartItem } from '../api/cart'
-import { ApiError } from '../api/client'
+import type { CartCouponState } from '../api/cart'
+import { ApiError, getAuthToken } from '../api/client'
 import type { Product } from '../api/products'
 
 const DELIVERY_FEE = 25
@@ -48,7 +49,7 @@ interface CartContextValue {
   setSubstitution: (itemId: string, allow: boolean) => void
   removeItem: (itemId: string) => void
   clearCart: () => void
-  applyCoupon: (code: string) => void
+  applyCoupon: (code: string) => Promise<void>
   pendingConflict: PendingConflict | null
   confirmSwitchStore: () => void
   cancelSwitchStore: () => void
@@ -63,6 +64,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // back into this state instead of trusting the local copy.
   const [cart, setCart] = useLocalStorage<Cart>('aislego.cart', EMPTY_CART)
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null)
+
+  const syncServerPricing = useCallback(
+    (serverCart: CartCouponState) => {
+      setCart((current) =>
+        ({
+          ...current,
+          subtotal: serverCart.subtotal,
+          deliveryFee: serverCart.deliveryFee,
+          couponCode: serverCart.couponCode,
+          discount: serverCart.discount,
+          total: serverCart.total,
+        }),
+      )
+    },
+    [setCart],
+  )
+
+  // A coupon can expire or be disabled while the cart is idle. Fetching the cart asks the
+  // backend to re-resolve it and makes that freshly calculated discount authoritative.
+  useEffect(() => {
+    if (!getAuthToken()) return
+    let cancelled = false
+    cartApi
+      .get()
+      .then((serverCart) => {
+        if (!cancelled) syncServerPricing(serverCart)
+      })
+      .catch(() => {
+        // Keep the local cart usable offline; an explicit Apply action still surfaces errors.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [syncServerPricing])
 
   const performAdd = useCallback(
     (input: AddToCartInput, baseCart: Cart) => {
@@ -98,6 +133,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       cartApi
         .addItem({ productId: input.product.id, storeId: input.storeId, quantity: input.quantity })
+        .then(syncServerPricing)
         .catch((error: unknown) => {
           if (error instanceof ApiError && error.code === CROSS_STORE_CONFLICT_CODE) {
             // The backend caught a conflict our local check missed (e.g. stale state across tabs).
@@ -107,7 +143,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           // Network errors are swallowed here — no backend yet is an expected state.
         })
     },
-    [setCart],
+    [setCart, syncServerPricing],
   )
 
   const addItem = useCallback(
@@ -152,9 +188,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           items: current.items.map((item) => (item.id === itemId ? { ...item, quantity } : item)),
         })
       })
-      cartApi.updateItem(itemId, { quantity }).catch(() => {})
+      cartApi.updateItem(itemId, { quantity }).then(syncServerPricing).catch(() => {})
     },
-    [setCart],
+    [setCart, syncServerPricing],
   )
 
   const setSubstitution = useCallback(
@@ -182,30 +218,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
           storeName: storeStillPresent ? current.storeName : null,
         })
       })
-      cartApi.removeItem(itemId).catch(() => {})
+      cartApi.removeItem(itemId).then(syncServerPricing).catch(() => {})
     },
-    [setCart],
+    [setCart, syncServerPricing],
   )
 
   const clearCart = useCallback(() => {
     setCart(EMPTY_CART)
-    cartApi.clear().catch(() => {})
-  }, [setCart])
+    cartApi.clear().then(syncServerPricing).catch(() => {})
+  }, [setCart, syncServerPricing])
 
   const applyCoupon = useCallback(
-    (code: string) => {
-      setCart((current) => {
-        const trimmed = code.trim().toUpperCase()
-        if (!trimmed) {
-          return recalculate({ ...current, couponCode: null, discount: 0 })
-        }
-        // Stub only: any non-empty code applies a flat demo discount. Real validation
-        // (and rejection of invalid/expired codes) happens once /cart/coupon exists.
-        const stubDiscount = Math.min(current.subtotal, 30)
-        return recalculate({ ...current, couponCode: trimmed, discount: stubDiscount })
-      })
+    async (code: string) => {
+      const trimmed = code.trim()
+      const serverCart = trimmed ? await cartApi.applyCoupon(trimmed) : await cartApi.removeCoupon()
+      syncServerPricing(serverCart)
     },
-    [setCart],
+    [syncServerPricing],
   )
 
   const value = useMemo<CartContextValue>(
