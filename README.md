@@ -136,6 +136,7 @@ Supermarkets are no longer limited to Flyway seed data — a real self-registrat
   docker compose exec postgres psql -U aislego -d aislego -c \
     "INSERT INTO user_roles (user_id, role) SELECT id, 'ADMIN' FROM users WHERE email = 'your-local-test-email@example.com';"
   ```
+- **Production admin bootstrap** — register the intended account through the normal live UI, then temporarily set `ADMIN_BOOTSTRAP_ENABLED=true` and `ADMIN_BOOTSTRAP_EMAIL` to that account's email on the backend host. Deploy once, confirm the account can access `/admin`, then remove both variables and deploy again. The bootstrap never accepts or stores a password, refuses to create an unknown account, and is disabled by default.
 - **Admin review** — the admin logs in at `/login`, reviews pending stores at `/admin`, and approves or rejects each one (rejection requires a reason). Approving a store flips it to `VERIFIED` and it immediately becomes visible in customer discovery; rejecting sets `REJECTED` with the reason attached.
 - **Owner status check** — the owner can check their application status at `/my-store` at any time, seeing `PENDING`, `VERIFIED`, or `REJECTED` (with the rejection reason, if any).
 
