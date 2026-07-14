@@ -144,7 +144,7 @@ Supermarkets are no longer limited to Flyway seed data — a real self-registrat
 - Partners register at `/register-delivery-partner`. New profiles start `PENDING` and offline.
 - Admins review applications at `/admin/delivery-partners`; only `VERIFIED` partners can go online.
 - When a store marks a delivery order ready, online partners see it as an offer. Acceptance is protected by a database row lock so only one partner can claim an order.
-- Acceptance generates two six-digit codes. Only BCrypt hashes are stored: the store owner receives the pickup code and the customer receives the delivery code through in-app notifications.
+- Acceptance generates two six-digit codes. Only BCrypt hashes are stored: the store owner receives the pickup code and the customer receives the delivery code through in-app notifications. Pickup codes expire after two hours, delivery codes after 24 hours, and either code locks after five incorrect attempts.
 - The partner verifies pickup, starts delivery, shares browser GPS while the order is out for delivery, and verifies the customer's code to complete it.
 - Only the assigned partner can publish location and only that order's customer can read it. Locations expire after two minutes and are erased on delivery or cancellation.
 - The partner dashboard includes completed-delivery history and earnings calculated from each order's snapshotted delivery fee.
@@ -197,11 +197,11 @@ GitHub Actions runs the complete backend and frontend checks on every pull reque
 
 ## Delivery release deployment order
 
-The backend must be deployed before the frontend because Flyway migrations V16-V20 create the schema used by the delivery APIs.
+The backend must be deployed before the frontend because Flyway migrations V16-V21 create the schema used by the delivery APIs.
 
 1. Back up the production PostgreSQL database.
-2. Deploy the backend and wait for `/actuator/health` to report healthy. Flyway applies V16-V20 automatically at startup.
-3. Confirm the Flyway history table records V16 through V20 successfully.
+2. Deploy the backend and wait for `/actuator/health` to report healthy. Flyway applies V16-V21 automatically at startup.
+3. Confirm the Flyway history table records V16 through V21 successfully.
 4. Deploy the frontend.
 5. Register a test partner, approve it as admin, and run one controlled order through offer acceptance, both OTPs, live location, delivery completion, and earnings.
 

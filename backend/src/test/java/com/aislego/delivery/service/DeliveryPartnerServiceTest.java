@@ -67,12 +67,46 @@ class DeliveryPartnerServiceTest {
         order.setDeliveryPartner(profile);
         order.setStatus(OrderStatus.DELIVERY_PARTNER_ASSIGNED);
         order.setPickupOtpHash("hashed-code");
+        order.setPickupOtpExpiresAt(Instant.now().plusSeconds(300));
         when(orderRepository.findForUpdateById(44L)).thenReturn(Optional.of(order));
         when(passwordEncoder.matches("111111", "hashed-code")).thenReturn(false);
         DeliveryPartnerService service = new DeliveryPartnerService(repository, orderRepository, passwordEncoder, notificationService);
 
         assertThatThrownBy(() -> service.verifyPickup(9L, 44L, "111111"))
                 .isInstanceOf(ConflictException.class).hasMessageContaining("incorrect");
+        assertThat(order.getPickupOtpAttempts()).isEqualTo(1);
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void pickupVerificationRejectsAnExpiredCode() {
+        Order order = new Order();
+        order.setId(44L);
+        order.setDeliveryPartner(profile());
+        order.setStatus(OrderStatus.DELIVERY_PARTNER_ASSIGNED);
+        order.setPickupOtpHash("hashed-code");
+        order.setPickupOtpExpiresAt(Instant.now().minusSeconds(1));
+        when(orderRepository.findForUpdateById(44L)).thenReturn(Optional.of(order));
+        DeliveryPartnerService service = new DeliveryPartnerService(repository, orderRepository, passwordEncoder, notificationService);
+
+        assertThatThrownBy(() -> service.verifyPickup(9L, 44L, "123456"))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("expired");
+    }
+
+    @Test
+    void pickupVerificationLocksAfterFiveIncorrectAttempts() {
+        Order order = new Order();
+        order.setId(44L);
+        order.setDeliveryPartner(profile());
+        order.setStatus(OrderStatus.DELIVERY_PARTNER_ASSIGNED);
+        order.setPickupOtpHash("hashed-code");
+        order.setPickupOtpExpiresAt(Instant.now().plusSeconds(300));
+        order.setPickupOtpAttempts(5);
+        when(orderRepository.findForUpdateById(44L)).thenReturn(Optional.of(order));
+        DeliveryPartnerService service = new DeliveryPartnerService(repository, orderRepository, passwordEncoder, notificationService);
+
+        assertThatThrownBy(() -> service.verifyPickup(9L, 44L, "123456"))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("Too many");
     }
 
     @Test

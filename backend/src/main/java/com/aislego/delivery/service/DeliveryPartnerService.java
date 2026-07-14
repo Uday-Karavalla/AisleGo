@@ -19,6 +19,7 @@ import java.util.Set;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.ZoneId;
 import java.math.BigDecimal;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class DeliveryPartnerService {
+    private static final int MAX_OTP_ATTEMPTS = 5;
+    private static final long PICKUP_OTP_TTL_HOURS = 2;
+    private static final long DELIVERY_OTP_TTL_HOURS = 24;
     private static final SecureRandom RANDOM = new SecureRandom();
     private final DeliveryPartnerProfileRepository repository;
     private final OrderRepository orderRepository;
@@ -79,6 +83,10 @@ public class DeliveryPartnerService {
         String deliveryCode = newOtp();
         order.setPickupOtpHash(passwordEncoder.encode(pickupCode));
         order.setDeliveryOtpHash(passwordEncoder.encode(deliveryCode));
+        order.setPickupOtpExpiresAt(Instant.now().plus(PICKUP_OTP_TTL_HOURS, ChronoUnit.HOURS));
+        order.setDeliveryOtpExpiresAt(Instant.now().plus(DELIVERY_OTP_TTL_HOURS, ChronoUnit.HOURS));
+        order.setPickupOtpAttempts(0);
+        order.setDeliveryOtpAttempts(0);
         profile.setAvailable(false);
         repository.save(profile);
         orderRepository.save(order);
@@ -93,13 +101,16 @@ public class DeliveryPartnerService {
         return DeliveryOfferResponse.from(order);
     }
 
+    @Transactional(noRollbackFor = ConflictException.class)
     public DeliveryOfferResponse verifyPickup(Long userId, Long orderId, String code) {
         Order order = assignedOrderForUpdate(userId, orderId);
         if (order.getStatus() != OrderStatus.DELIVERY_PARTNER_ASSIGNED) {
             throw new ConflictException("INVALID_DELIVERY_STAGE", "This order is not awaiting pickup verification");
         }
-        verifyCode(order.getPickupOtpHash(), code);
+        verifyPickupCode(order, code);
         order.setPickupOtpHash(null);
+        order.setPickupOtpExpiresAt(null);
+        order.setPickupOtpAttempts(0);
         order.setStatus(OrderStatus.PICKED_UP);
         return DeliveryOfferResponse.from(orderRepository.save(order));
     }
@@ -113,13 +124,16 @@ public class DeliveryPartnerService {
         return DeliveryOfferResponse.from(orderRepository.save(order));
     }
 
+    @Transactional(noRollbackFor = ConflictException.class)
     public DeliveryOfferResponse verifyDelivery(Long userId, Long orderId, String code) {
         Order order = assignedOrderForUpdate(userId, orderId);
         if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
             throw new ConflictException("INVALID_DELIVERY_STAGE", "Start delivery before completing it");
         }
-        verifyCode(order.getDeliveryOtpHash(), code);
+        verifyDeliveryCode(order, code);
         order.setDeliveryOtpHash(null);
+        order.setDeliveryOtpExpiresAt(null);
+        order.setDeliveryOtpAttempts(0);
         order.setStatus(OrderStatus.DELIVERED);
         DeliveryPartnerProfile profile = order.getDeliveryPartner();
         profile.setAvailable(true);
@@ -179,9 +193,33 @@ public class DeliveryPartnerService {
         return order;
     }
 
-    private void verifyCode(String hash, String code) {
-        if (hash == null || !passwordEncoder.matches(code, hash)) {
+    private void verifyPickupCode(Order order, String code) {
+        ensureOtpUsable(order.getPickupOtpHash(), order.getPickupOtpExpiresAt(), order.getPickupOtpAttempts());
+        if (!passwordEncoder.matches(code, order.getPickupOtpHash())) {
+            order.setPickupOtpAttempts(order.getPickupOtpAttempts() + 1);
+            orderRepository.save(order);
             throw new ConflictException("INVALID_OTP", "The code is incorrect");
+        }
+    }
+
+    private void verifyDeliveryCode(Order order, String code) {
+        ensureOtpUsable(order.getDeliveryOtpHash(), order.getDeliveryOtpExpiresAt(), order.getDeliveryOtpAttempts());
+        if (!passwordEncoder.matches(code, order.getDeliveryOtpHash())) {
+            order.setDeliveryOtpAttempts(order.getDeliveryOtpAttempts() + 1);
+            orderRepository.save(order);
+            throw new ConflictException("INVALID_OTP", "The code is incorrect");
+        }
+    }
+
+    private void ensureOtpUsable(String hash, Instant expiresAt, int attempts) {
+        if (hash == null) {
+            throw new ConflictException("OTP_ALREADY_USED", "This code has already been used");
+        }
+        if (expiresAt == null || !expiresAt.isAfter(Instant.now())) {
+            throw new ConflictException("OTP_EXPIRED", "This code has expired");
+        }
+        if (attempts >= MAX_OTP_ATTEMPTS) {
+            throw new ConflictException("OTP_LOCKED", "Too many incorrect code attempts");
         }
     }
 
