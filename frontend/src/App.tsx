@@ -34,6 +34,9 @@ import Notifications from './pages/Notifications'
 import AdminGrowth from './pages/AdminGrowth'
 import ProductDetail from './pages/ProductDetail'
 import LocalDelivery from './pages/LocalDelivery'
+import RegisterDeliveryPartner from './pages/RegisterDeliveryPartner'
+import DeliveryPartnerDashboard from './pages/DeliveryPartnerDashboard'
+import AdminDeliveryPartners from './pages/AdminDeliveryPartners'
 import { GrowthTracker } from './components/GrowthTracker'
 
 function App() {
@@ -89,6 +92,8 @@ function App() {
                   }
                 />
                 <Route path="/register-store" element={<RegisterSupermarketOwner />} />
+                <Route path="/register-delivery-partner" element={<RegisterDeliveryPartner />} />
+                <Route path="/deliveries" element={<ProtectedRoute requiredRole="DELIVERY_PARTNER"><DeliveryPartnerDashboard /></ProtectedRoute>} />
                 <Route
                   path="/referrals"
                   element={
@@ -134,6 +139,7 @@ function App() {
                   }
                 />
                 <Route path="/admin/growth" element={<ProtectedRoute requiredRole="ADMIN"><AdminGrowth /></ProtectedRoute>} />
+                <Route path="/admin/delivery-partners" element={<ProtectedRoute requiredRole="ADMIN"><AdminDeliveryPartners /></ProtectedRoute>} />
                 <Route
                   path="/my-store"
                   element={

@@ -10,6 +10,9 @@ import com.aislego.common.exception.UnauthorizedException;
 import com.aislego.common.security.JwtService;
 import com.aislego.common.security.LoginRateLimiter;
 import com.aislego.email.EmailService;
+import com.aislego.delivery.domain.DeliveryPartnerProfile;
+import com.aislego.delivery.domain.DeliveryPartnerStatus;
+import com.aislego.delivery.repository.DeliveryPartnerProfileRepository;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.AdminResetPasswordRequest;
@@ -18,6 +21,7 @@ import com.aislego.identity.dto.AuthResponse;
 import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.MeResponse;
 import com.aislego.identity.dto.RegisterRequest;
+import com.aislego.identity.dto.RegisterDeliveryPartnerRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
 import com.aislego.identity.dto.UpdateAccountRequest;
@@ -51,19 +55,22 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final LoginRateLimiter loginRateLimiter;
+    private final DeliveryPartnerProfileRepository deliveryPartnerProfileRepository;
 
     @Autowired(required = false)
     private ReferralService referralService;
 
     public AuthService(UserRepository userRepository, SupermarketRepository supermarketRepository,
                         PasswordEncoder passwordEncoder, JwtService jwtService, EmailService emailService,
-                        LoginRateLimiter loginRateLimiter) {
+                        LoginRateLimiter loginRateLimiter,
+                        DeliveryPartnerProfileRepository deliveryPartnerProfileRepository) {
         this.userRepository = userRepository;
         this.supermarketRepository = supermarketRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
         this.loginRateLimiter = loginRateLimiter;
+        this.deliveryPartnerProfileRepository = deliveryPartnerProfileRepository;
     }
 
     @Transactional
@@ -84,6 +91,29 @@ public class AuthService {
             referralService.prepareNewCustomer(user, request.referralCode());
         }
 
+        return issueTokens(user);
+    }
+
+    @Transactional
+    public AuthResponse registerDeliveryPartner(RegisterDeliveryPartnerRequest request) {
+        if (userRepository.existsByEmail(request.email().toLowerCase())) {
+            throw new ConflictException("EMAIL_TAKEN", "An account with this email already exists");
+        }
+
+        User user = new User();
+        user.setEmail(request.email().toLowerCase());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setFullName(request.fullName());
+        user.setPhone(request.phone());
+        user.setRoles(Set.of(Role.DELIVERY_PARTNER));
+        issueAndSendVerificationCode(user);
+        user = userRepository.save(user);
+
+        DeliveryPartnerProfile profile = new DeliveryPartnerProfile();
+        profile.setUser(user);
+        profile.setAvailable(false);
+        profile.setStatus(DeliveryPartnerStatus.PENDING);
+        deliveryPartnerProfileRepository.save(profile);
         return issueTokens(user);
     }
 

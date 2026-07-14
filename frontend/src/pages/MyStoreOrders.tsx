@@ -16,6 +16,8 @@ const STATUS_FILTERS: Array<OrderStatus | 'ALL'> = [
   'PICKING',
   'PACKING',
   'READY_FOR_PICKUP',
+  'DELIVERY_PARTNER_ASSIGNED',
+  'OUT_FOR_DELIVERY',
   'DELIVERED',
   'CANCELLED',
 ]
@@ -27,10 +29,10 @@ const NEXT_STEP: Partial<Record<OrderStatus, { status: OrderStatus; label: strin
   ACCEPTED_BY_STORE: { status: 'PICKING', label: 'Start picking' },
   PICKING: { status: 'PACKING', label: 'Mark packed' },
   PACKING: { status: 'READY_FOR_PICKUP', label: 'Mark ready for pickup' },
-  READY_FOR_PICKUP: { status: 'DELIVERED', label: 'Mark delivered' },
+  OUT_FOR_DELIVERY: { status: 'DELIVERED', label: 'Mark delivered' },
 }
 
-const CANCELLABLE: OrderStatus[] = ['PAYMENT_CONFIRMED', 'ACCEPTED_BY_STORE', 'PICKING', 'PACKING', 'READY_FOR_PICKUP']
+const CANCELLABLE: OrderStatus[] = ['PAYMENT_CONFIRMED', 'ACCEPTED_BY_STORE', 'PICKING', 'PACKING', 'READY_FOR_PICKUP', 'DELIVERY_PARTNER_ASSIGNED', 'OUT_FOR_DELIVERY']
 
 export default function MyStoreOrders() {
   const [orders, setOrders] = useState<OwnerOrder[]>([])
@@ -128,7 +130,11 @@ export default function MyStoreOrders() {
 
       {status === 'success' &&
         orders.map((order) => {
-          const next = NEXT_STEP[order.status]
+          const next = order.status === 'READY_FOR_PICKUP'
+            ? order.fulfilmentType === 'PICKUP'
+              ? { status: 'DELIVERED' as const, label: 'Complete pickup' }
+              : undefined
+            : NEXT_STEP[order.status]
           const canCancel = CANCELLABLE.includes(order.status)
           return (
             <div key={order.id} className="card flex flex-col gap-2">
@@ -151,6 +157,9 @@ export default function MyStoreOrders() {
               </p>
               {order.deliveryAddress && (
                 <p className="text-sm text-ink-muted">Deliver to: {order.deliveryAddress}</p>
+              )}
+              {order.status === 'READY_FOR_PICKUP' && order.fulfilmentType !== 'PICKUP' && (
+                <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">Waiting for an available delivery partner.</p>
               )}
               <ul className="flex flex-col gap-0.5 text-sm text-ink-muted">
                 {order.items.map((item) => (

@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aislego_migration_check
+      POSTGRES_USER: aislego
+      POSTGRES_PASSWORD: migration-check-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aislego -d aislego_migration_check"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: aislego_migration_check
+      DB_USER: aislego
+      DB_PASSWORD: migration-check-only
+      JWT_SECRET: migration-check-secret-at-least-32-bytes-long
+      CORS_ALLOWED_ORIGIN: http://localhost
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 15s

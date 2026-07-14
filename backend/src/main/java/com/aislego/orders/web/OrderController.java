@@ -6,6 +6,7 @@ import com.aislego.orders.dto.OrderStatusResponse;
 import com.aislego.orders.service.OrderService;
 import com.aislego.orders.service.ReorderService;
 import com.aislego.orders.dto.CartResponse;
+import com.aislego.delivery.dto.DeliveryLocationResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -43,6 +44,12 @@ public class OrderController {
     public OrderStatusResponse getStatus(@AuthenticationPrincipal AuthenticatedUser principal,
                                           @PathVariable Long orderId) {
         return new OrderStatusResponse(orderService.getMyOrderStatus(principal.userId(), orderId));
+    }
+
+    @GetMapping("/{orderId}/delivery-location")
+    public DeliveryLocationResponse getDeliveryLocation(@AuthenticationPrincipal AuthenticatedUser principal,
+                                                         @PathVariable Long orderId) {
+        return orderService.getMyDeliveryLocation(principal.userId(), orderId);
     }
 
     @PostMapping("/{orderId}/reorder")

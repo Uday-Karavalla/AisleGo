@@ -5,6 +5,7 @@ import com.aislego.catalogue.domain.Supermarket;
 import com.aislego.common.entity.BaseEntity;
 import com.aislego.common.money.Money;
 import com.aislego.identity.domain.User;
+import com.aislego.delivery.domain.DeliveryPartnerProfile;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
@@ -50,6 +51,16 @@ public class Order extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_partner_id")
+    private DeliveryPartnerProfile deliveryPartner;
+
+    @Column(name = "pickup_otp_hash", length = 100)
+    private String pickupOtpHash;
+
+    @Column(name = "delivery_otp_hash", length = 100)
+    private String deliveryOtpHash;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

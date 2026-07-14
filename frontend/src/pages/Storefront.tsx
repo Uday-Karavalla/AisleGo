@@ -136,7 +136,7 @@ export default function Storefront() {
   useEffect(() => {
     setPage(1)
     if (debouncedSearch) trackEvent('search', { query: debouncedSearch, supermarketId })
-  }, [debouncedSearch, category])
+  }, [debouncedSearch, category, supermarketId])
 
   useEffect(() => {
     if (!supermarketId) return

@@ -20,11 +20,13 @@ See [`docs/`](docs/) for the full product and engineering documentation:
 | [10-testing-strategy](docs/10-testing-strategy.md) | Test pyramid + invariant tests |
 | [11-deployment-architecture](docs/11-deployment-architecture.md) | Local, CI, and cloud topology |
 
-## What's implemented (Phase 0 — first working flow)
+## What's implemented
 
 Store discovery → browse a store's catalogue → add to cart → checkout → order placed, with the single-supermarket-cart rule enforced **server-side**.
 
-Deliberately out of scope for this phase (see [roadmap](docs/09-roadmap.md)): Kafka, OpenSearch, delivery-partner navigation, WebSocket live tracking, the delivery-partner and admin apps, CSV/barcode import, loyalty engine, analytics. These are stubbed with honest stand-ins:
+The post-checkout delivery flow is also implemented end to end: store preparation, verified delivery-partner registration, admin approval, availability and offer acceptance, secure pickup/delivery OTP handoffs, live customer tracking, delivery history, and partner earnings.
+
+Still deliberately out of scope (see [roadmap](docs/09-roadmap.md)): Kafka, OpenSearch, turn-by-turn navigation, WebSocket push tracking, native background GPS, loyalty, and large-scale analytics. Current tracking uses privacy-scoped browser geolocation plus polling.
 
 - **Search** → Postgres `ILIKE` instead of OpenSearch
 - **Nearby stores** → a real Haversine-vs-OpenRouteService `RoutingService` seam now exists (see [Maps & routing](#maps--routing) below); the default `HaversineRoutingService` still computes straight-line distance and an assumed-speed ETA with zero setup, which is what `docker compose up` uses out of the box
@@ -137,7 +139,23 @@ Supermarkets are no longer limited to Flyway seed data — a real self-registrat
 - **Admin review** — the admin logs in at `/login`, reviews pending stores at `/admin`, and approves or rejects each one (rejection requires a reason). Approving a store flips it to `VERIFIED` and it immediately becomes visible in customer discovery; rejecting sets `REJECTED` with the reason attached.
 - **Owner status check** — the owner can check their application status at `/my-store` at any time, seeing `PENDING`, `VERIFIED`, or `REJECTED` (with the rejection reason, if any).
 
-Delivery-partner verification is out of scope for now — it's deferred until the delivery-partner app/module exists (see [roadmap](docs/09-roadmap.md), Phase 1).
+## Delivery partners
+
+- Partners register at `/register-delivery-partner`. New profiles start `PENDING` and offline.
+- Admins review applications at `/admin/delivery-partners`; only `VERIFIED` partners can go online.
+- When a store marks a delivery order ready, online partners see it as an offer. Acceptance is protected by a database row lock so only one partner can claim an order.
+- Acceptance generates two six-digit codes. Only BCrypt hashes are stored: the store owner receives the pickup code and the customer receives the delivery code through in-app notifications.
+- The partner verifies pickup, starts delivery, shares browser GPS while the order is out for delivery, and verifies the customer's code to complete it.
+- Only the assigned partner can publish location and only that order's customer can read it. Locations expire after two minutes and are erased on delivery or cancellation.
+- The partner dashboard includes completed-delivery history and earnings calculated from each order's snapshotted delivery fee.
+
+Delivery lifecycle:
+
+```text
+READY_FOR_PICKUP -> DELIVERY_PARTNER_ASSIGNED -> PICKED_UP -> OUT_FOR_DELIVERY -> DELIVERED
+```
+
+Browser geolocation requires HTTPS in production (localhost is allowed for development).
 
 ## Verifying the golden path
 
@@ -165,4 +183,34 @@ cd backend && ./gradlew test
 
 # Frontend
 cd frontend && npm run test
+```
+
+Frontend lint and release build:
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+GitHub Actions runs the complete backend and frontend checks on every pull request and every push to `main`.
+
+## Delivery release deployment order
+
+The backend must be deployed before the frontend because Flyway migrations V16-V20 create the schema used by the delivery APIs.
+
+1. Back up the production PostgreSQL database.
+2. Deploy the backend and wait for `/actuator/health` to report healthy. Flyway applies V16-V20 automatically at startup.
+3. Confirm the Flyway history table records V16 through V20 successfully.
+4. Deploy the frontend.
+5. Register a test partner, approve it as admin, and run one controlled order through offer acceptance, both OTPs, live location, delivery completion, and earnings.
+
+Do not deploy the frontend first: it can expose delivery screens before the corresponding database schema and APIs exist.
+
+To validate every Flyway migration against a disposable database without touching the normal local stack:
+
+```bash
+docker compose -f docker-compose.migration-check.yml -p aislego-migration-check up --build -d
+docker compose -f docker-compose.migration-check.yml -p aislego-migration-check ps
+docker compose -f docker-compose.migration-check.yml -p aislego-migration-check down -v
 ```
