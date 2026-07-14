@@ -62,6 +62,18 @@ public class Order extends BaseEntity {
     @Column(name = "delivery_otp_hash", length = 100)
     private String deliveryOtpHash;
 
+    @Column(name = "pickup_otp_expires_at")
+    private Instant pickupOtpExpiresAt;
+
+    @Column(name = "delivery_otp_expires_at")
+    private Instant deliveryOtpExpiresAt;
+
+    @Column(name = "pickup_otp_attempts", nullable = false)
+    private int pickupOtpAttempts;
+
+    @Column(name = "delivery_otp_attempts", nullable = false)
+    private int deliveryOtpAttempts;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.PLACED;
