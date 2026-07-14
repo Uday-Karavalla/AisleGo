@@ -5,6 +5,9 @@ import com.aislego.orders.domain.Order;
 import com.aislego.orders.domain.OrderStatus;
 import com.aislego.orders.dto.OrderResponse;
 import com.aislego.orders.repository.OrderRepository;
+import com.aislego.delivery.dto.DeliveryLocationResponse;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,5 +37,21 @@ public class OrderService {
         return orderRepository.findByIdAndUserId(orderId, userId)
                 .map(Order::getStatus)
                 .orElseThrow(() -> new NotFoundException("Order " + orderId + " was not found"));
+    }
+
+    public DeliveryLocationResponse getMyDeliveryLocation(Long userId, Long orderId) {
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new NotFoundException("Order " + orderId + " was not found"));
+        if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY || order.getDeliveryPartner() == null) {
+            return DeliveryLocationResponse.unavailable();
+        }
+        var profile = order.getDeliveryPartner();
+        if (profile.getLastLatitude() == null || profile.getLastLongitude() == null
+                || profile.getLocationUpdatedAt() == null
+                || profile.getLocationUpdatedAt().isBefore(Instant.now().minus(2, ChronoUnit.MINUTES))) {
+            return DeliveryLocationResponse.unavailable();
+        }
+        return new DeliveryLocationResponse(true, profile.getLastLatitude(), profile.getLastLongitude(),
+                profile.getLocationUpdatedAt());
     }
 }

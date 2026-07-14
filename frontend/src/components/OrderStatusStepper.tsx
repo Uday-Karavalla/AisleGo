@@ -1,15 +1,16 @@
 import { ORDER_STAGES, ORDER_STAGE_LABELS } from '../api/orders'
-import type { OrderStage } from '../api/orders'
+import type { FulfilmentType, OrderStage } from '../api/orders'
 import { CheckIcon } from './icons'
 
 interface OrderStatusStepperProps {
   currentStage: OrderStage
+  fulfilmentType?: FulfilmentType
 }
 
 type StepState = 'done' | 'current' | 'upcoming'
 
 /** Vertical stepper for the fixed ORDER_STAGES workflow, highlighting the current stage. */
-export function OrderStatusStepper({ currentStage }: OrderStatusStepperProps) {
+export function OrderStatusStepper({ currentStage, fulfilmentType }: OrderStatusStepperProps) {
   if (currentStage === 'CANCELLED') {
     return (
       <div className="card border-2 border-danger-500/30 bg-danger-50 text-center">
@@ -18,13 +19,16 @@ export function OrderStatusStepper({ currentStage }: OrderStatusStepperProps) {
     )
   }
 
-  const currentIndex = ORDER_STAGES.indexOf(currentStage)
+  const stages = fulfilmentType === 'PICKUP'
+    ? ORDER_STAGES.filter((stage) => !['DELIVERY_PARTNER_ASSIGNED', 'PICKED_UP', 'OUT_FOR_DELIVERY'].includes(stage))
+    : ORDER_STAGES.filter((stage) => stage !== 'PICKED_UP')
+  const currentIndex = stages.indexOf(currentStage)
 
   return (
     <ol aria-label="Order progress">
-      {ORDER_STAGES.map((stage, index) => {
+      {stages.map((stage, index) => {
         const state: StepState = index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'upcoming'
-        const isLast = index === ORDER_STAGES.length - 1
+        const isLast = index === stages.length - 1
 
         return (
           <li

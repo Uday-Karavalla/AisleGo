@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { authApi } from '../api/auth'
-import type { RegisterPayload, RegisterSupermarketOwnerPayload } from '../api/auth'
+import type { RegisterDeliveryPartnerPayload, RegisterPayload, RegisterSupermarketOwnerPayload } from '../api/auth'
 import { getAuthToken, setAuthToken } from '../api/client'
 
 export interface AuthUser {
@@ -18,6 +18,7 @@ interface AuthContextValue {
   logout: () => void
   register: (payload: RegisterPayload) => Promise<AuthUser>
   registerSupermarketOwner: (payload: RegisterSupermarketOwnerPayload) => Promise<AuthUser>
+  registerDeliveryPartner: (payload: RegisterDeliveryPartnerPayload) => Promise<AuthUser>
   verifyEmail: (code: string) => Promise<void>
   resendVerification: () => Promise<void>
 }
@@ -77,6 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return me
   }, [])
 
+  const registerDeliveryPartner = useCallback(async (payload: RegisterDeliveryPartnerPayload) => {
+    const auth = await authApi.registerDeliveryPartner(payload)
+    setAuthToken(auth.accessToken)
+    const me = await authApi.me()
+    setUser(me)
+    return me
+  }, [])
+
   const logout = useCallback(() => {
     setAuthToken(null)
     setUser(null)
@@ -106,10 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       register,
       registerSupermarketOwner,
+      registerDeliveryPartner,
       verifyEmail,
       resendVerification,
     }),
-    [user, isLoading, login, logout, register, registerSupermarketOwner, verifyEmail, resendVerification],
+    [user, isLoading, login, logout, register, registerSupermarketOwner, registerDeliveryPartner, verifyEmail, resendVerification],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

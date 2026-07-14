@@ -117,5 +117,7 @@ export const ordersApi = {
 
   getStatus: (orderId: number) => api.get<{ status: OrderStatus }>(`/orders/${orderId}/status`),
 
+  getDeliveryLocation: (orderId: number) => api.get<import('./deliveryPartner').DeliveryLocation>(`/orders/${orderId}/delivery-location`),
+
   reorder: (orderId: number) => api.post<import('./cart').CartCouponState>(`/orders/${orderId}/reorder`),
 }

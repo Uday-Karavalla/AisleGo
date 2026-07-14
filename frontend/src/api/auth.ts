@@ -34,6 +34,8 @@ export interface RegisterSupermarketOwnerPayload {
   supermarketPhone: string
 }
 
+export type RegisterDeliveryPartnerPayload = Pick<RegisterPayload, 'email' | 'password' | 'fullName' | 'phone'>
+
 /**
  * Shape assumed for `POST /api/auth/register-supermarket-owner`'s response. The plan
  * leaves the wrapper's exact key names to the backend implementer's judgement — this
@@ -55,6 +57,9 @@ export const authApi = {
 
   registerSupermarketOwner: (payload: RegisterSupermarketOwnerPayload) =>
     api.post<RegisterSupermarketOwnerResponse>('/auth/register-supermarket-owner', payload),
+
+  registerDeliveryPartner: (payload: RegisterDeliveryPartnerPayload) =>
+    api.post<AuthResponse>('/auth/register-delivery-partner', payload),
 
   me: () => api.get<MeResponse>('/auth/me'),
 

@@ -16,6 +16,8 @@ const STATUS_FILTERS: Array<OrderStatus | 'ALL'> = [
   'PICKING',
   'PACKING',
   'READY_FOR_PICKUP',
+  'DELIVERY_PARTNER_ASSIGNED',
+  'PICKED_UP',
   'OUT_FOR_DELIVERY',
   'DELIVERED',
   'CANCELLED',
@@ -125,6 +127,11 @@ export default function AdminOrders() {
             </p>
             {order.deliveryAddress && (
               <p className="text-sm text-ink-muted">Deliver to: {order.deliveryAddress}</p>
+            )}
+            {order.deliveryPartnerName && (
+              <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
+                Partner: {order.deliveryPartnerName}{order.deliveryPartnerPhone ? ` · ${order.deliveryPartnerPhone}` : ''}
+              </p>
             )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-ink-muted">{new Date(order.createdAt).toLocaleString()}</span>

@@ -140,6 +140,12 @@ export default function Register() {
           Register your store
         </Link>
       </p>
+      <p className="text-center text-sm text-ink-muted">
+        Want to deliver orders?{' '}
+        <Link to="/register-delivery-partner" className="font-semibold text-brand-700">
+          Become a delivery partner
+        </Link>
+      </p>
     </div>
     </div>
   )

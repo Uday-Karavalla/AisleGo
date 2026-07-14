@@ -7,6 +7,7 @@ import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.MeResponse;
 import com.aislego.identity.dto.RefreshRequest;
 import com.aislego.identity.dto.RegisterRequest;
+import com.aislego.identity.dto.RegisterDeliveryPartnerRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
 import com.aislego.identity.dto.UpdateAccountRequest;
@@ -36,6 +37,12 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    }
+
+    @PostMapping("/register-delivery-partner")
+    public ResponseEntity<AuthResponse> registerDeliveryPartner(
+            @Valid @RequestBody RegisterDeliveryPartnerRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerDeliveryPartner(request));
     }
 
     @PostMapping("/register-supermarket-owner")

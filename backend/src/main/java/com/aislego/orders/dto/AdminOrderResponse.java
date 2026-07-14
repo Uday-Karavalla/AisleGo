@@ -25,6 +25,8 @@ public record AdminOrderResponse(
         String couponCode,
         BigDecimal discountAmount,
         String deliveryAddress,
+        String deliveryPartnerName,
+        String deliveryPartnerPhone,
         Instant createdAt
 ) {
     public static AdminOrderResponse from(Order order) {
@@ -44,6 +46,8 @@ public record AdminOrderResponse(
                 order.getCouponCode(),
                 order.getDiscountAmount(),
                 order.getDeliveryAddress(),
+                order.getDeliveryPartner() == null ? null : order.getDeliveryPartner().getUser().getFullName(),
+                order.getDeliveryPartner() == null ? null : order.getDeliveryPartner().getUser().getPhone(),
                 order.getCreatedAt()
         );
     }

@@ -11,12 +11,14 @@ import com.aislego.common.exception.TooManyAttemptsException;
 import com.aislego.common.security.JwtService;
 import com.aislego.common.security.LoginRateLimiter;
 import com.aislego.email.EmailService;
+import com.aislego.delivery.repository.DeliveryPartnerProfileRepository;
 import com.aislego.identity.domain.Role;
 import com.aislego.identity.domain.User;
 import com.aislego.identity.dto.AdminResetPasswordRequest;
 import com.aislego.identity.dto.AdminVerifyEmailRequest;
 import com.aislego.identity.dto.LoginRequest;
 import com.aislego.identity.dto.RegisterSupermarketOwnerRequest;
+import com.aislego.identity.dto.RegisterDeliveryPartnerRequest;
 import com.aislego.identity.dto.SupermarketOwnerAuthResponse;
 import com.aislego.identity.dto.UpdateAccountRequest;
 import com.aislego.identity.repository.UserRepository;
@@ -54,6 +56,8 @@ class AuthServiceTest {
     private EmailService emailService;
     @Mock
     private LoginRateLimiter loginRateLimiter;
+    @Mock
+    private DeliveryPartnerProfileRepository deliveryPartnerProfileRepository;
 
     private AuthService authService;
 
@@ -64,7 +68,7 @@ class AuthServiceTest {
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         authService = new AuthService(userRepository, supermarketRepository, passwordEncoder, jwtService, emailService,
-                loginRateLimiter);
+                loginRateLimiter, deliveryPartnerProfileRepository);
     }
 
     @Test
@@ -174,6 +178,33 @@ class AuthServiceTest {
 
         verify(userRepository, never()).save(any());
         verify(supermarketRepository, never()).save(any());
+    }
+
+    @Test
+    void registerDeliveryPartnerCreatesAnOfflinePartnerProfile() {
+        RegisterDeliveryPartnerRequest request = new RegisterDeliveryPartnerRequest(
+                "rider@example.com", "password123", "Ravi Rider", "+919000000000");
+        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(passwordEncoder.encode(request.password())).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(50L);
+            return user;
+        });
+        when(jwtService.generateAccessToken(anyLong(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(anyLong(), any(), any())).thenReturn("refresh-token");
+        when(jwtService.getAccessTokenTtlMillis()).thenReturn(900_000L);
+
+        authService.registerDeliveryPartner(request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getRoles()).containsExactly(Role.DELIVERY_PARTNER);
+        ArgumentCaptor<com.aislego.delivery.domain.DeliveryPartnerProfile> profileCaptor =
+                ArgumentCaptor.forClass(com.aislego.delivery.domain.DeliveryPartnerProfile.class);
+        verify(deliveryPartnerProfileRepository).save(profileCaptor.capture());
+        assertThat(profileCaptor.getValue().isAvailable()).isFalse();
+        assertThat(profileCaptor.getValue().getUser()).isEqualTo(userCaptor.getValue());
     }
 
     @Test

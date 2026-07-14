@@ -29,11 +29,11 @@ import java.util.Set;
  * on payment failure; nothing progressed it any further. This is the human/store-ops
  * counterpart of that automatic step.
  *
- * <p>The allowed transitions deliberately skip the not-yet-built stages
- * ({@code SUBSTITUTION_APPROVAL}, {@code DELIVERY_PARTNER_ASSIGNED}, {@code PICKED_UP},
- * {@code OUT_FOR_DELIVERY}) - with no delivery-partner module, the store is the one
- * fulfilling the whole order, so it goes straight from {@code READY_FOR_PICKUP} to
- * {@code DELIVERED} once handed over. {@code CANCELLED} is reachable from any non-terminal
+ * <p>The allowed transitions deliberately skip the not-yet-built assignment and pickup
+ * stages ({@code SUBSTITUTION_APPROVAL}, {@code DELIVERY_PARTNER_ASSIGNED},
+ * {@code PICKED_UP}). Until partner assignment is built, the store can dispatch delivery
+ * orders itself through {@code OUT_FOR_DELIVERY}; pickup orders go directly from
+ * {@code READY_FOR_PICKUP} to {@code DELIVERED}. {@code CANCELLED} is reachable from any non-terminal
  * state so a store can back out of an order it can't fulfil (releasing its reserved stock).
  */
 @Service
@@ -45,7 +45,8 @@ public class OwnerOrderService {
             OrderStatus.ACCEPTED_BY_STORE, Set.of(OrderStatus.PICKING, OrderStatus.CANCELLED),
             OrderStatus.PICKING, Set.of(OrderStatus.PACKING, OrderStatus.CANCELLED),
             OrderStatus.PACKING, Set.of(OrderStatus.READY_FOR_PICKUP, OrderStatus.CANCELLED),
-            OrderStatus.READY_FOR_PICKUP, Set.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED)
+            OrderStatus.DELIVERY_PARTNER_ASSIGNED, Set.of(OrderStatus.CANCELLED),
+            OrderStatus.OUT_FOR_DELIVERY, Set.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED)
     );
 
     private final SupermarketRepository supermarketRepository;
@@ -78,7 +79,7 @@ public class OwnerOrderService {
         Order order = orderRepository.findByIdAndSupermarketId(orderId, supermarket.getId())
                 .orElseThrow(() -> new NotFoundException("Order " + orderId + " was not found"));
 
-        Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(order.getStatus(), Set.of());
+        Set<OrderStatus> allowed = allowedTransitions(order);
         if (!allowed.contains(newStatus)) {
             throw new ConflictException("INVALID_TRANSITION",
                     "Cannot move an order from " + order.getStatus() + " to " + newStatus);
@@ -86,6 +87,12 @@ public class OwnerOrderService {
 
         if (newStatus == OrderStatus.CANCELLED) {
             inventoryReservationService.release(order.getBranch().getId(), toReservationLines(order));
+            if (order.getDeliveryPartner() != null) {
+                order.getDeliveryPartner().setAvailable(true);
+                order.getDeliveryPartner().setLastLatitude(null);
+                order.getDeliveryPartner().setLastLongitude(null);
+                order.getDeliveryPartner().setLocationUpdatedAt(null);
+            }
         }
 
         order.setStatus(newStatus);
@@ -94,12 +101,22 @@ public class OwnerOrderService {
         return OwnerOrderResponse.from(order);
     }
 
+    private Set<OrderStatus> allowedTransitions(Order order) {
+        if (order.getStatus() == OrderStatus.READY_FOR_PICKUP) {
+            return order.getFulfilmentType() == com.aislego.orders.domain.FulfilmentType.PICKUP
+                    ? Set.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED)
+                    : Set.of(OrderStatus.CANCELLED);
+        }
+        return ALLOWED_TRANSITIONS.getOrDefault(order.getStatus(), Set.of());
+    }
+
     private void notifyCustomer(Order order, OrderStatus newStatus) {
         String message = switch (newStatus) {
             case ACCEPTED_BY_STORE -> "Your order #" + order.getId() + " has been accepted by the store.";
             case PICKING -> "Your order #" + order.getId() + " is being picked.";
             case PACKING -> "Your order #" + order.getId() + " is being packed.";
             case READY_FOR_PICKUP -> "Your order #" + order.getId() + " is ready for pickup.";
+            case OUT_FOR_DELIVERY -> "Your order #" + order.getId() + " is out for delivery.";
             case DELIVERED -> "Your order #" + order.getId() + " has been delivered.";
             case CANCELLED -> "Your order #" + order.getId() + " was cancelled by the store.";
             default -> "Your order #" + order.getId() + " is now " + newStatus + ".";

@@ -84,6 +84,11 @@ function AccountMenu() {
           </Link>
         )}
         {user.roles.includes('ADMIN') && (
+          <Link to="/admin/delivery-partners" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            Admin — delivery partners
+          </Link>
+        )}
+        {user.roles.includes('ADMIN') && (
           <Link to="/admin/users" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             Admin — manage users
           </Link>
@@ -96,6 +101,11 @@ function AccountMenu() {
         {user.roles.includes('SUPERMARKET_OWNER') && (
           <Link to="/my-store" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
             My store
+          </Link>
+        )}
+        {user.roles.includes('DELIVERY_PARTNER') && (
+          <Link to="/deliveries" className="block rounded-lg px-2 py-1.5 text-sm font-medium text-ink hover:bg-black/5">
+            My deliveries
           </Link>
         )}
         {user.roles.includes('SUPERMARKET_OWNER') && (

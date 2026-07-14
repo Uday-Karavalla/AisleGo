@@ -18,6 +18,15 @@ export interface PendingSupermarket {
   ownerFullName: string | null
 }
 
+export interface AdminDeliveryPartner {
+  id: number
+  fullName: string
+  email: string
+  phone: string
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED'
+  registeredAt: string
+}
+
 /** One row of `GET /api/admin/orders` — matches the backend's `AdminOrderResponse` exactly. */
 export interface AdminOrder {
   id: number
@@ -35,6 +44,8 @@ export interface AdminOrder {
   couponCode: string | null
   discountAmount: number
   deliveryAddress: string | null
+  deliveryPartnerName: string | null
+  deliveryPartnerPhone: string | null
   createdAt: string
 }
 
@@ -63,6 +74,11 @@ export const adminApi = {
   verify: (id: number) => api.post<void>(`/admin/supermarkets/${id}/verify`),
 
   reject: (id: number, reason: string) => api.post<void>(`/admin/supermarkets/${id}/reject`, { reason }),
+
+  listPendingDeliveryPartners: () => api.get<AdminDeliveryPartner[]>('/admin/delivery-partners?status=PENDING'),
+  verifyDeliveryPartner: (id: number) => api.post<void>(`/admin/delivery-partners/${id}/verify`),
+  rejectDeliveryPartner: (id: number, reason: string) =>
+    api.post<void>(`/admin/delivery-partners/${id}/reject`, { reason }),
 
   async listOrders(params: { status?: OrderStatus; page?: number } = {}): Promise<AdminOrderPage> {
     const query = new URLSearchParams({

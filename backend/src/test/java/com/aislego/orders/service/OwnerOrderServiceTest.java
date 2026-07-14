@@ -139,6 +139,40 @@ class OwnerOrderServiceTest {
     }
 
     @Test
+    void storeCannotDispatchDeliveryOrderBeforeAPartnerAcceptsIt() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Order order = buildOrder(OrderStatus.READY_FOR_PICKUP);
+        order.setFulfilmentType(FulfilmentType.IMMEDIATE);
+        when(orderRepository.findByIdAndSupermarketId(ORDER_ID, MY_SUPERMARKET_ID)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> service.advanceStatus(OWNER_ID, ORDER_ID, OrderStatus.OUT_FOR_DELIVERY))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void deliveryOrderCannotBeMarkedDeliveredBeforeDispatch() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Order order = buildOrder(OrderStatus.READY_FOR_PICKUP);
+        order.setFulfilmentType(FulfilmentType.IMMEDIATE);
+        when(orderRepository.findByIdAndSupermarketId(ORDER_ID, MY_SUPERMARKET_ID)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> service.advanceStatus(OWNER_ID, ORDER_ID, OrderStatus.DELIVERED))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void pickupOrderMovesDirectlyFromReadyToDelivered() {
+        when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
+        Order order = buildOrder(OrderStatus.READY_FOR_PICKUP);
+        order.setFulfilmentType(FulfilmentType.PICKUP);
+        when(orderRepository.findByIdAndSupermarketId(ORDER_ID, MY_SUPERMARKET_ID)).thenReturn(Optional.of(order));
+
+        OwnerOrderResponse response = service.advanceStatus(OWNER_ID, ORDER_ID, OrderStatus.DELIVERED);
+
+        assertThat(response.status()).isEqualTo(OrderStatus.DELIVERED);
+    }
+
+    @Test
     void advanceStatusThrowsNotFoundWhenTheOrderBelongsToAnotherSupermarket() {
         when(supermarketRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(mySupermarket));
         when(orderRepository.findByIdAndSupermarketId(ORDER_ID, MY_SUPERMARKET_ID)).thenReturn(Optional.empty());
@@ -164,6 +198,7 @@ class OwnerOrderServiceTest {
         order.setSupermarket(mySupermarket);
         order.setBranch(branch);
         order.setStatus(status);
+        order.setFulfilmentType(FulfilmentType.IMMEDIATE);
         order.setTotalAmount(Money.of(BigDecimal.valueOf(135), "INR"));
         order.setCouponCode("SAVE10");
         order.setDiscountAmount(BigDecimal.TEN);

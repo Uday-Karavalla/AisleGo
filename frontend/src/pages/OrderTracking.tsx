@@ -6,6 +6,7 @@ import { ApiError } from '../api/client'
 import { loadMockOrder, advanceMockOrder } from '../api/mockOrders'
 import { OrderStatusStepper } from '../components/OrderStatusStepper'
 import { ClockIcon } from '../components/icons'
+import type { DeliveryLocation } from '../api/deliveryPartner'
 
 const POLL_INTERVAL_MS = 4000
 
@@ -16,6 +17,7 @@ export default function OrderTracking() {
   const orderId = orderIdParam !== undefined ? Number(orderIdParam) : undefined
   const [order, setOrder] = useState<Order | null>(null)
   const [status, setStatus] = useState<Status>('loading')
+  const [deliveryLocation, setDeliveryLocation] = useState<DeliveryLocation | null>(null)
 
   // Initial full-order fetch (items, totals, status).
   useEffect(() => {
@@ -71,6 +73,20 @@ export default function OrderTracking() {
     return () => clearInterval(interval)
   }, [orderId, status])
 
+  useEffect(() => {
+    if (!orderId || order?.status !== 'OUT_FOR_DELIVERY') {
+      setDeliveryLocation(null)
+      return
+    }
+    let cancelled = false
+    const refresh = () => ordersApi.getDeliveryLocation(orderId)
+      .then((location) => { if (!cancelled) setDeliveryLocation(location) })
+      .catch(() => {})
+    void refresh()
+    const interval = setInterval(refresh, POLL_INTERVAL_MS)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [orderId, order?.status])
+
   if (status === 'loading') {
     return <div className="px-5 py-10 text-center text-sm text-ink-muted">Loading your order…</div>
   }
@@ -98,8 +114,27 @@ export default function OrderTracking() {
       </div>
 
       <div className="card">
-        <OrderStatusStepper currentStage={order.status} />
+        <OrderStatusStepper currentStage={order.status} fulfilmentType={order.fulfilmentType} />
       </div>
+
+      {order.status === 'OUT_FOR_DELIVERY' && (
+        <div className="card flex flex-col gap-2">
+          <h2 className="text-sm font-bold text-ink">Live delivery location</h2>
+          {deliveryLocation?.available && deliveryLocation.latitude !== null && deliveryLocation.longitude !== null ? (
+            <>
+              <iframe
+                title="Delivery partner live location"
+                className="h-64 w-full rounded-xl border-0"
+                loading="lazy"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${deliveryLocation.longitude - 0.01}%2C${deliveryLocation.latitude - 0.01}%2C${deliveryLocation.longitude + 0.01}%2C${deliveryLocation.latitude + 0.01}&marker=${deliveryLocation.latitude}%2C${deliveryLocation.longitude}`}
+              />
+              <p className="text-xs text-ink-faint">Updated {new Date(deliveryLocation.updatedAt!).toLocaleTimeString()}</p>
+            </>
+          ) : (
+            <p className="text-sm text-ink-muted">Waiting for the delivery partner’s latest location…</p>
+          )}
+        </div>
+      )}
 
       {order.deliveryAddress && (
         <div className="card">
