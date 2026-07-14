@@ -70,6 +70,9 @@ server:
 # would just be dead configuration.
 
 aislego:
+  admin-bootstrap:
+    enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+    email: ${ADMIN_BOOTSTRAP_EMAIL:}
   security:
     jwt:
       secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-please-32-bytes-min}
