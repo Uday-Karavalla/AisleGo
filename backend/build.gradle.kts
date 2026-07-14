@@ -24,7 +24,7 @@ repositories {
     mavenCentral()
 }
 
-val jjwtVersion = "0.12.6"
+val jjwtVersion = "0.13.0"
 
 dependencies {
     // Web / validation
