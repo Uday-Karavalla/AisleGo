@@ -4,6 +4,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -21,6 +22,9 @@ import java.util.Optional;
 @ConditionalOnProperty(name = "aislego.routing.provider", havingValue = "haversine", matchIfMissing = true)
 public class HaversineRoutingService implements RoutingService {
 
+    /** Centre of AisleGo's current service area, aligned with the Madanapalle seed data. */
+    private static final GeoPoint MADANAPALLE = new GeoPoint(13.6293, 78.4747);
+
     @Override
     public List<RouteEstimate> estimateRoutes(GeoPoint origin, List<GeoPoint> destinations) {
         return destinations.stream()
@@ -30,9 +34,14 @@ public class HaversineRoutingService implements RoutingService {
 
     @Override
     public Optional<GeoPoint> geocode(String query) {
-        // The default provider is pure straight-line math with no address database behind it,
-        // so it has nothing to resolve a free-text query against. Only the opt-in
-        // OpenRouteServiceRoutingService supports geocoding.
+        // Keep the zero-key production setup usable for AisleGo's current single-city service
+        // area. Detailed street addresses still require the opt-in OpenRouteService provider.
+        String normalized = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        if (normalized.contains("madanapalle")
+                || normalized.contains("madanapalli")
+                || normalized.contains("madana palli")) {
+            return Optional.of(MADANAPALLE);
+        }
         return Optional.empty();
     }
 }

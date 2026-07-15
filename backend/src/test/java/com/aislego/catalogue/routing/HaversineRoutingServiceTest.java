@@ -44,9 +44,22 @@ class HaversineRoutingServiceTest {
     }
 
     @Test
-    void geocodeIsNotSupportedByTheDefaultProvider() {
+    void geocodeReturnsEmptyForPlacesOutsideTheConfiguredServiceArea() {
         Optional<GeoPoint> result = routingService.geocode("100 Ft Road, Indiranagar, Bengaluru");
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void geocodeResolvesMadanapalleWithoutAnExternalApiKey() {
+        Optional<GeoPoint> result = routingService.geocode("Madanapalle, Andhra Pradesh");
+
+        assertThat(result).contains(new GeoPoint(13.6293, 78.4747));
+    }
+
+    @Test
+    void geocodeAcceptsCommonMadanapalleSpellingVariants() {
+        assertThat(routingService.geocode("Madanapalli")).isPresent();
+        assertThat(routingService.geocode("Madana Palli")).isPresent();
     }
 }
