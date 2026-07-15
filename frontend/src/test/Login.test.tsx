@@ -104,6 +104,27 @@ describe('Login', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/my-store'))
   })
 
+  it('logs a delivery partner in and redirects to /deliveries', async () => {
+    vi.mocked(authApi.login).mockResolvedValue({
+      accessToken: 'token-delivery-partner',
+      refreshToken: 'refresh-delivery-partner',
+      tokenType: 'Bearer',
+      expiresInMillis: 3600000,
+    })
+    vi.mocked(authApi.me).mockResolvedValue({
+      id: 4,
+      email: 'rider@example.com',
+      roles: ['DELIVERY_PARTNER'],
+      emailVerified: true,
+    })
+
+    const user = userEvent.setup()
+    renderLogin()
+    await fillAndSubmit(user, 'rider@example.com', 'password123')
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/deliveries'))
+  })
+
   it('shows an inline error and does not navigate on invalid credentials', async () => {
     vi.mocked(authApi.login).mockRejectedValue(new ApiError('Unauthorized', 401))
 

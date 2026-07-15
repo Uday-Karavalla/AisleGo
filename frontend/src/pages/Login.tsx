@@ -23,6 +23,7 @@ export default function Login() {
       const user = await login(email, password)
       if (user.roles.includes('ADMIN')) navigate('/admin')
       else if (user.roles.includes('SUPERMARKET_OWNER')) navigate('/my-store')
+      else if (user.roles.includes('DELIVERY_PARTNER')) navigate('/deliveries')
       else if (returnTo) navigate(returnTo, { replace: true })
       else navigate('/')
     } catch (error) {
