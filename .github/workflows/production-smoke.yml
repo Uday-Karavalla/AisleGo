@@ -32,7 +32,7 @@ jobs:
           E2E_BACKEND_HEALTH_URL: https://aislego-backend.onrender.com/actuator/health
       - name: Upload failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: production-smoke-diagnostics
           path: |
