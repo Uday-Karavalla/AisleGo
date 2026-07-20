@@ -46,7 +46,7 @@ dependencies {
 
     // Payments - Razorpay is opt-in via aislego.payments.provider=razorpay; MockPaymentGateway
     // (no extra dependency) remains the zero-setup default.
-    implementation("com.razorpay:razorpay-java:1.4.5")
+    implementation("com.razorpay:razorpay-java:1.4.9")
 
     // Email - SMTP sending is opt-in via aislego.email.provider=smtp; LoggingEmailService
     // (no extra setup) remains the zero-setup default, same pattern as payments/routing/notifications.
